@@ -13,7 +13,7 @@ import { createUserWithEmailAndPassword, deleteUser, getAuth, onAuthStateChanged
 import { getStorage, ref, uploadBytes, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import {CoinsIcon, Eye, HandCoins, Search,  UserCheck2, Users2, X,School, Star, } from "lucide-react";
 import React ,{useState, useEffect, useRef} from "react";
-import { formatTimestampToDate} from '../classes/page';
+import { formatTimestampToDate} from '../classes/dateFormat';
 import DateTimePicker from 'react-datetime-picker';
 import { Router } from 'react-router-dom';
 import Image from 'next/image';
