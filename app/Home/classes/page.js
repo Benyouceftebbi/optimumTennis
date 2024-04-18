@@ -2589,7 +2589,14 @@ const Dashboard = () => {
     // You can define your navigation logic here
     console.log("Navigate to details:", item);
   };
+const [newModal,setNewModal]=useState(false)
+const onClose = ()=>{
+  
+ 
 
+
+setNewModal(false);
+};
   return (
     <div className="container mx-auto">
       <h1 className="text-3xl font-semibold  my-4 text-center">Class List</h1>
@@ -2608,16 +2615,36 @@ const Dashboard = () => {
             }))}
           />
         ))}
-
-        {/* <NewItem
+  <div
+          className="bg-gray-200 p-3 rounded-md cursor-pointer hover:shadow-lg flex items-center justify-center"
+          style={{
+            width: "300px",
+            height: "300px",
+            margin: "10px",
+            padding: "20px",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+            textAlign: "center",
+          }}
+          onClick={()=>setNewModal(true)}
+        >
+          <span className="text-5xl">+</span>
+        </div>
+        {newModal &&   <NewItem
           trainers={trainers}
           trainees={trainees.map((trainee) => ({
             uid: trainee.id,
             ...trainee,
           }))}
           setI={setClasses}
-          i={rerender}
-        /> */}
+         
+          toggleForm={()=>onClose()}
+          classDetails={classDetails}
+          setClassDetails={setClassDetails}
+          
+          setShowModal={setNewModal} 
+         
+        />}
       </div>
     </div>
   );
