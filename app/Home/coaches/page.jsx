@@ -22,7 +22,7 @@ import { useRouter } from 'next/navigation'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import AttendanceRateChart from './AttendanceChart';
 import { getFunctions,httpsCallable } from 'firebase/functions';
-import { formatCreatedAt } from '../classes/page';
+import { formatCreatedAt } from '../classes/dateFormat';
 const ChatScreen = ({coachDetails}) => {
  
   const [messages, setMessages] = useState([]);

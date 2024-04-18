@@ -1,7 +1,7 @@
 
 'use client'
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { writeFile } from 'xlsx';
@@ -17,6 +17,7 @@ import { Card } from '../payment/coaches/page';
 import { BadgeDollarSign, Gauge, Hourglass, MoreHorizontalIcon, User2, UserPlus, UserRound } from 'lucide-react';
 import styles from '@/app/Home/firstpage/dashboard.module.css'
 import Rightbar from '@/components/UI/rightside/rightbar';
+import { useAuth } from '@/context/AuthContext';
 // Mocked data for cards and chart
 const cards = [
   { id: 1, title: "Active Users", number: 1024, change: 5 },
@@ -195,7 +196,7 @@ const netRevenueData = calculateNetRevenue(payments, refunds);
 const Dashboard = () => {
 const [payments,setPayments]=useState({payments:[],refunds:[]})
 const [status,setStatus]=useState({totalMatches:0,revenue:0,users:0,coaches:0,totalReservation:0})
-const [attendance,setAttendance]=useState([])
+const [attendance,setAttendance]=useState([{date: new Date(), listData: []} ])
 const [showAddRow, setShowAddRow] = useState(false);
 const [newPlayerDetails, setNewPlayerDetails] = useState({
 timeIn:{hours:'',minutes:''},
@@ -204,11 +205,11 @@ uid:'dadawww',
 name:'',
 });
 const [selectedAttendance, setSelectedAttendance] = useState({ date: new Date(), listData: [] });
-const [trainers, setTrainers] = useState([]);
+
 const [selectedDate, setSelectedDate] = useState(new Date()); // Initialize with today's date
 const hours = Array.from({ length: 24 }, (_, i) => ('0' + i).slice(-2)); // Array of 24 hours
 const minutes = Array.from({ length: 60 }, (_, i) => ('0' + i).slice(-2)); // Array of 60 minutes
-
+const {trainers}=useAuth()
 useEffect(()=>{
 
   const getData = async () => {
@@ -255,12 +256,11 @@ let   totalDuration = 0
 },[])
 
 useEffect(() => {
-
   const fetchTrainers = async () => {
     try {
       const attendanceData = [];
       const trainersCollectionRef = collection(db, 'Attendance');
-      const querySnapshot = await getDocs(trainersCollectionRef,orderBy("date","desc"));
+      const querySnapshot = await getDocs(trainersCollectionRef, orderBy("date", "desc"));
       const docs = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
       for (const doc of docs) {
@@ -270,12 +270,18 @@ useEffect(() => {
           ...doc.data(),
         }));
         attendanceData.push({ ...doc, listData });
-     
       }
 
-      // Now attendanceData contains listData for each attendance entry
-     setAttendance(attendanceData)
-setSelectedAttendance(attendanceData[0])
+      // Check if attendanceData is empty
+      if (attendanceData.length === 0) {
+        // Set default values
+        setAttendance([{ date: new Date(), listData:[]}]);
+        setSelectedAttendance({ date: new Date(), listData: [] });
+      } else {
+        // Set fetched attendance data
+        setAttendance(attendanceData);
+        setSelectedAttendance(attendanceData[0]); // Assuming the first entry as selected by default
+      }
     } catch (error) {
       console.error('Error fetching trainers:', error);
     }
@@ -284,25 +290,6 @@ setSelectedAttendance(attendanceData[0])
   fetchTrainers();
 }, []);
 
-useEffect(() => {
-
-  const fetchTrainers = async () => {
-      try {
-          const trainersCollectionRef = collection(db, 'Trainers');
-          const querySnapshot = await getDocs(trainersCollectionRef);
-          const trainersData = [];
-          querySnapshot.forEach((doc) => {
-              const trainerData ={uid:doc.id, ...doc.data()};
-              trainersData.push(trainerData);
-          });
-          setTrainers(trainersData);
-      } catch (error) {
-          console.error('Error fetching trainers:', error);
-      }
-  };
-
-  fetchTrainers();
-}, []);
 useEffect(()=>{
 
   const filterAttendanceByDate = (attendanceData, selectedDate) => {
@@ -419,32 +406,18 @@ const handleSubmitToDatabase = async () => {
           selectedAttendance.listData.forEach(async (selectedPlayer) => {
             const existingPlayer = aa.find((player) => player.id === selectedPlayer.id);
                
-    
-            if (existingPlayer) {
-              // Compare content
-              if (JSON.stringify(existingPlayer) !== JSON.stringify(selectedPlayer)) {
-         
-                await setDoc(doc(db, 'Attendance', selectedAttendance.id, 'List',existingPlayer.id),{uid:selectedPlayer.uid,
-                  name:selectedPlayer.name,
-                  timeIn:selectedPlayer.timeIn,
-                  timeOut:selectedPlayer.timeOut,
-                  startTime:createDateWithTime(selectedDate,selectedPlayer.timeIn.hours,selectedPlayer.timeIn.minutes),
-                  endTime:createDateWithTime(selectedDate,selectedPlayer.timeOut.hours,selectedPlayer.timeOut.minutes)});
-               console.log(`Player ${existingPlayer.name} updated in listData`);
-              }
-            
-            } else {
+  
            
-          const ref=await addDoc(collection(db, 'Attendance', selectedAttendance.id, 'List'), { uid:selectedPlayer.uid,
+          const ref=await addDoc(collection(db, 'Attendance', selectedAttendance.id, 'List'), {
+              uid:selectedPlayer.uid,
               name:selectedPlayer.name,
               timeIn:selectedPlayer.timeIn,
               timeOut:selectedPlayer.timeOut,
               startTime:createDateWithTime(selectedDate,selectedPlayer.timeIn.hours,selectedPlayer.timeIn.minutes),
               endTime:createDateWithTime(selectedDate,selectedPlayer.timeOut.hours,selectedPlayer.timeOut.minutes)});
               console.log(ref,selectedPlayer.uid);
-             const b=await addDoc(collection(db, 'Trainers', selectedPlayer.uid, 'attendance'),{Ref:ref});
-             console.log(b.path);
-            }
+             //const b=await addDoc(collection(db, 'Trainers', selectedPlayer.uid, 'attendance'),{Ref:ref});
+            
           });
           
           // Check for removed items in aa
@@ -453,7 +426,7 @@ const handleSubmitToDatabase = async () => {
         
             if (isRemoved) {
         
-              await deleteDoc(doc(db, 'Trainers', player.uid, 'attendance', player.id));
+             // await deleteDoc(doc(db, 'Trainers', player.uid, 'attendance', player.id));
               await deleteDoc(doc(db, 'Attendance', selectedAttendance.id, 'List',player.id));
             }
           }
@@ -474,10 +447,6 @@ const handleSubmitToDatabase = async () => {
               endTime:createDateWithTime(selectedAttendance.date,player.timeOut.hours,player.timeOut.minutes)
             });
             
-            // Update the player document with the reference to Listdata
-            await addDoc(collection(db, 'Trainers', player.uid,"attendance"), {
-              Ref:playerDocRef,
-            });
           }
           setAttendance(newAttendance);
         }
@@ -531,7 +500,6 @@ const handleAddRow = () => {
     });
   };
   const handleAddPlayer = (player) => {
-    console.log(selectedAttendance);
     setSelectedAttendance((prev) => ({
       ...prev,
       listData: [...prev.listData, player],
@@ -546,7 +514,18 @@ const handleAddRow = () => {
       uid:'',
       name:'',
     });
-  };
+  }
+
+  const shouldRenderSubmitButton = useMemo(() => {
+    const selectedAttendanceData = attendance.find(obj => obj.date === selectedAttendance.date);
+    console.log(selectedAttendanceData);
+    return (
+      !showAddRow &&
+      selectedAttendanceData &&
+      JSON.stringify(selectedAttendanceData.listData) !== JSON.stringify(selectedAttendance.listData)
+    );
+  }, [showAddRow]);
+
 
 
   return (
@@ -780,9 +759,10 @@ onChange={(e) => {
             
               
       </div>
-      {!showAddRow && attendance.find(obj => obj.date === selectedAttendance.date) && 
-      JSON.stringify(attendance.find(obj => obj.date === selectedAttendance.date).listData) !== JSON.stringify(selectedAttendance.listData) 
-      && (
+      {  !showAddRow &&
+ attendance.find(obj => obj.date === selectedAttendance.date) &&
+      JSON.stringify( attendance.find(obj => obj.date === selectedAttendance.date).listData) !== JSON.stringify(selectedAttendance.listData) && 
+       (
   <div className="mt-4">
     <button className="px-4 py-2 bg-blue-500 text-white rounded mr-2" onClick={handleSubmitToDatabase}>Submit</button>
   </div>

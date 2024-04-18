@@ -371,9 +371,9 @@ const ParticipantsHorizontalScroll = ({
       lessonsLeft: (Number(newPlayerDetails.Category) + 1) * Number(newPlayerDetails.Duration) * 4,
     }));
   }, [newPlayerDetails.Duration, newPlayerDetails.Category, newPlayerDetails.discount, newPlayerDetails.name]);
-  async function updateOthers() {
+  async function updateOthers(e) {
 
-
+    e.preventDefault();
     // Check for new participants
     const newParticipants = selectedPlayers.filter(
       (participant) =>
@@ -381,7 +381,7 @@ const ParticipantsHorizontalScroll = ({
           (prevParticipant) => prevParticipant.uid === participant.uid
         )
     );
-    if (newParticipants.length > 0) {
+    if (newParticipants.length > 0 && classDetails.id) {
       const currentDate = new Date();
       let total = 0;
       const paymentReceivedPromises = [];
@@ -426,21 +426,28 @@ const ParticipantsHorizontalScroll = ({
       });
     }
     
-    setClassDetails((prevClassDetails) => ({
-      ...prevClassDetails,
-      participants: selectedPlayers,
-    }));
+
     
-    await updateDoc(doc(db, "Classes", classDetails.id), {
+    if (classDetails.id) {
+      await updateDoc(doc(db, "Classes", classDetails.id), {
       participants: selectedPlayers.map((player) => ({
         ...player,
         discount: player.discount != null
           ? { name: player.discount.name, rate: player.discount.rate }
           : null,
+          membership: player.membership != null
+          ? player.membership
+          : null,
+          image:null
       })),
       participantsuid: selectedPlayers.map((p) => p.uid),
     });
-    
+  }
+  setClassDetails((prevClassDetails) => ({
+    ...prevClassDetails,
+    participants: selectedPlayers,
+    participantsuid: selectedPlayers.map((p) => p.uid),
+  }));
     setShowModal(false);
   }
   // priceMap[reservation.duration] - (priceMap[reservation.duration] * parseInt(discount?.rate || 0, 10) / 100),
@@ -1305,7 +1312,7 @@ const Item = ({ item, onNavigate, i, setI, trainers, trainees }) => {
       alert("No changes to submit.");
     }
   };
-
+console.log(classDetails.RegistrationDeadLine);
   return (
     <div
       className="bg-gray-100 p-1 rounded-md cursor-pointer hover:shadow-lg relative font-semibold text-gray-600"
@@ -1546,12 +1553,12 @@ const Item = ({ item, onNavigate, i, setI, trainers, trainees }) => {
                       </strong>
 
 <div          className="rounded-lg rounded-xl px-3 mt-2 w-90 ">
-                        <DateTimePicker
+                        {/* <DateTimePicker
                         className="border-none"
                       
                         calendarClassName="border-none"
                           value={
-                            classDetails.RegistrationDeadLine.nanoseconds
+                            classDetails.RegistrationDeadLine.seconds
                               ? classDetails.RegistrationDeadLine.toDate()
                               : classDetails.RegistrationDeadLine
                           }
@@ -1564,7 +1571,7 @@ const Item = ({ item, onNavigate, i, setI, trainers, trainees }) => {
                           }}
                           calendarIcon={null} // Remove default calendar icon
                           clearIcon={false}
-                        />
+                        /> */}
                      </div> 
                     </div>
 
@@ -1836,14 +1843,9 @@ const Item = ({ item, onNavigate, i, setI, trainers, trainees }) => {
   );
 };
 
-const NewItem = ({ trainers, trainees, setI, i }) => {
+export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, setClassDetails,saveEvent,setShowModal,setEvents}) => {
   const [selectedDateTime, setSelectedDateTime] = useState([new Date()]);
   const [selectedDurations, setSelectedDurations] = useState([60]);
-  const [classDetails, setClassDetails] = useState({
-    classTime: [{ day: "Monday", startTime: "13:00", endTime: "14:00" }],
-    participants: [],
-    participantsuid: [],
-  });
   const [showDetails, setShowDetails] = useState(false);
   const { courts } = useAuth();
   const [showForm, setShowForm] = useState(false);
@@ -1923,8 +1925,7 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
       alert("You must leave one class Time.");
     }
   };
-  // Function to create attendance data for a class
-  async function createAttendanceForClass(docRef) {
+  async function createAttendanceForClass(docRef, title) {
     try {
       const dayMap = {
         Sunday: 0,
@@ -1935,25 +1936,26 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
         Friday: 5,
         Saturday: 6,
       };
-
-      // Loop through each class time
       classDetails.classTime.forEach(async (classTime) => {
-        // Get the start date of the current week based on the day of the week
-        let startDate = new Date(); // Use the current date as the base
-        const currentDay = startDate.getDay(); // Get the current day of the week
-        const targetDay = dayMap[classTime.day]; // Get the numeric value for the target day
-        const daysUntilTargetDay = (targetDay - currentDay + 7) % 7; // Calculate days until target day
-        startDate.setDate(startDate.getDate() + daysUntilTargetDay); // Set the start date
-        startDate.setHours(classTime.startTime.split(":")[0]); // Set end time hours
-        startDate.setMinutes(classTime.startTime.split(":")[1]);
-        // Calculate the end date of the current week
-        let endDate = new Date(startDate);
-        endDate.setHours(classTime.endTime.split(":")[0]); // Set end time hours
-        endDate.setMinutes(classTime.endTime.split(":")[1]); // Set end time minutes
-
-        // Loop through each week based on the class duration
-        for (let i = 0; i < parseInt(classDetails.Duration, 10); i++) {
-          // Construct document data for Firestore
+        const numberWeeks = parseInt(classDetails.Duration, 10);
+      
+        for (let i = 0; i < numberWeeks; i++) {
+          let startDate = new Date(); // Use the current date as the base
+          const currentDay = startDate.getDay(); // Get the current day of the week
+          const targetDay = dayMap[classTime.day]; // Get the numeric value for the target day
+          const daysUntilTargetDay = (targetDay - currentDay + 7) % 7; // Calculate days until target day
+          startDate.setDate(startDate.getDate() + daysUntilTargetDay + i * 7); // Set the start date for the current week
+          startDate.setHours(classTime.startTime.split(":")[0]); // Set end time hours
+          startDate.setMinutes(classTime.startTime.split(":")[1]);
+      
+          let endDate = new Date(startDate);
+          endDate.setHours(classTime.endTime.split(":")[0]); // Set end time hours
+          endDate.setMinutes(classTime.endTime.split(":")[1]); // Set end time minutes
+      
+          const id = generateRandomUid(13);
+          const courtId = parseInt(classTime.Court.match(/\d+/)[0]);
+     
+          await saveEvent(id, startDate, endDate, courtId, title, "class", "#FFC0CB")
           const docData = {
             Participants: classDetails.participantsuid,
             date: startDate,
@@ -1983,13 +1985,10 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
               type: "class",
             }
           );
-
-          startDate.setDate(startDate.getDate() + 7);
-          endDate.setDate(endDate.getDate() + 7);
+       
         }
       });
-
-      // Log success
+  
       console.log("Attendance data created successfully.");
     } catch (error) {
       // Log any errors
@@ -2013,21 +2012,22 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
       delete updatedClassDetails.trainer;
       delete updatedClassDetails.history;
       delete updatedClassDetails.canceled;
-
+      delete updatedClassDetails.participants;
+      delete updatedClassDetails.participantsuid
+      console.log(updatedClassDetails);
       // Create class document in Firestore
       const docRef = await addDoc(
         collection(db, "Classes"),
         updatedClassDetails
       );
-      await createAttendanceForClass(docRef.id); // Create attendance records
 
-      // Handle payment details and update total revenue
-      await handlePaymentDetails(updatedClassDetails.participants, docRef.id);
+      await createAttendanceForClass(docRef.id,classDetails.className); // Create attendance records
 
-      // Close modal, show success message, and update state
+     await handlePaymentDetails(classDetails.participants, docRef.id);
       handleClose();
-      alert("Class Created Successfully");
-      setI((prev) => [...prev, classDetails]);
+     setI((prev) => [...prev, classDetails]);
+      setShowModal(false)
+     alert("Class Created Successfully");
     } catch (error) {
       console.error("Error adding document:", error);
       alert("An error occurred. Please try again.");
@@ -2035,31 +2035,66 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
   };
 
   const handlePaymentDetails = async (participants, classId) => {
-    const currentDate = new Date();
-    let total = 0;
 
-    // Create documents in PaymentReceived subcollection for new participants
-    const paymentReceivedRef = collection(
-      db,
-      "Club/GeneralInformation/PaymentReceived"
-    );
-    await Promise.all(
-      participants.map(async (participant) => {
-        await addDoc(paymentReceivedRef, {
+      const currentDate = new Date();
+      let total = 0;
+      const paymentReceivedPromises = [];
+    
+      participants.forEach((participant) => {
+        const paymentReceivedRef = collection(
+          db,
+          "Club/GeneralInformation/PaymentReceived"
+        ); // Generate a new document ID
+    
+        const paymentReceivedPromise = addDoc(paymentReceivedRef, {
           uid: participant.uid,
           date: currentDate,
-          classRef: classId,
+          classRef: doc(db, "Classes", classId),
           payment: participant.paymentType,
+          status: participant.paymentStatus,
+          paymentType: participant.paymentType,
           price: participant.Price,
+          description: null,
         });
-        total += parseInt(participant.Price, 10); // Increment total price
-      })
-    );
+    
+        paymentReceivedPromises.push(paymentReceivedPromise);
+    
+        total += participant.Price;
+    
+        if (participant.discount) {
+          const discountId = participant.discount.id;
+          paymentReceivedPromises.push(
+            updateDoc(doc(db, "Discounts", discountId), {
+              consumers: increment(1),
+            })
+          );
+        } else {
+          console.log("Discount object is missing or incomplete.");
+        }
+      });
+    
+      await Promise.all(paymentReceivedPromises);
+    
+      await updateDoc(doc(db, "Club", "GeneralInformation"), {
+        totalRevenue: increment(total),
+      });
+    
+    
 
-    // Update totalRevenue in Firestore
-    await updateDoc(doc(db, "Club/GeneralInformation"), {
-      totalRevenue: increment(total),
-    });
+      await updateDoc(doc(db, "Classes", classId), {
+        participants: classDetails.participants.map((player) => ({
+          ...player,
+          discount: player.discount != null
+            ? { name: player.discount.name, rate: player.discount.rate }
+            : null,
+            membership: player.membership != null
+            ? player.membership
+            : null,
+            image:null
+        })),
+        participantsuid: classDetails.participants.map((p) => p.uid),
+      });
+    
   };
 
   const handleClose = () => {
@@ -2082,9 +2117,9 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
     setSelectedDurations(newDurations);
   };
 
-  const toggleForm = () => {
-    setShowForm(!showForm);
-  };
+  // const toggleForm = () => {
+  //   setShowForm(!showForm);
+  // };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -2104,7 +2139,7 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
 
   return (
     <>
-      {!showForm ? (
+      {/* {!showForm ? (
         <div
           className="bg-gray-200 p-3 rounded-md cursor-pointer hover:shadow-lg flex items-center justify-center"
           style={{
@@ -2120,7 +2155,7 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
         >
           <span className="text-5xl">+</span>
         </div>
-      ) : (
+      ) : ( */}
         <div
           className="fixed inset-0 flex justify-end items-center h-full overflow-auto bg-gray-600 bg-opacity-50"
           style={{ height: "calc(100% )", zIndex: "9999" }}
@@ -2261,22 +2296,11 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
                     <strong className="text-gray-600 font-semibold">
                       Registration deadline
                     </strong>
-                    <div
-                      className="rounded-lg"
-                      type="text"
-                      name="RegistrationDeadLine"
-                      value={
-                        classDetails.RegistrationDeadLine
-                          ? classDetails.RegistrationDeadLine.toDateString()
-                          : new Date().toDateString()
-                      }
-                      onClick={handleTextClick}
-                      required // Convert string back to array on change
-                    />
-
-                    {showCalendar && (
+          
                       <DateTimePicker
-                        value={new Date()}
+                        value={ classDetails.RegistrationDeadLine
+                          ? classDetails.RegistrationDeadLine
+                          : new Date()}
                         onChange={(date) => {
                           setClassDetails({
                             ...classDetails,
@@ -2287,7 +2311,7 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
                         calendarIcon={null} // Remove default calendar icon
                         required
                       />
-                    )}
+                  
                   </div>
 
                   <div className="flex flex-col">
@@ -2429,6 +2453,7 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
                             className="rounded-lg"
                             name="Court"
                             required
+                            value={date.Court}
                             onChange={(e) =>
                               handlePriceChange(e.target.value, "Court", index)
                             }
@@ -2546,7 +2571,7 @@ const NewItem = ({ trainers, trainees, setI, i }) => {
             </form>
           </div>
         </div>
-      )}
+      {/* )} */}
     </>
   );
 };
@@ -2555,7 +2580,11 @@ const Dashboard = () => {
   const { classes, setClasses, trainers, trainees } = useAuth();
 
   const [rerender, setRerender] = useState(true);
-
+  const [classDetails, setClassDetails] = useState({
+    classTime: [{ day: "Monday", startTime: "13:00", endTime: "14:00" }],
+    participants: [],
+    participantsuid: [],
+  });
   const navigateToDetails = (item) => {
     // You can define your navigation logic here
     console.log("Navigate to details:", item);
@@ -2580,7 +2609,7 @@ const Dashboard = () => {
           />
         ))}
 
-        <NewItem
+        {/* <NewItem
           trainers={trainers}
           trainees={trainees.map((trainee) => ({
             uid: trainee.id,
@@ -2588,7 +2617,7 @@ const Dashboard = () => {
           }))}
           setI={setClasses}
           i={rerender}
-        />
+        /> */}
       </div>
     </div>
   );

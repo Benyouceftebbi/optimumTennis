@@ -12,6 +12,7 @@ import {
   Medal,
   CircleDollarSign,
   Trophy,
+  Bell
 } from "lucide-react";
 import SidebarItem from "./item";
 
@@ -52,6 +53,11 @@ const items= [
     name: "Tournaments",
     path: "/Home/tournaments",
     icon: Trophy,
+  },
+  {
+    name: "Notifications",
+    path: "/Home/Notifications",
+    icon: Bell,
   },
   {
     name: "Billing",
