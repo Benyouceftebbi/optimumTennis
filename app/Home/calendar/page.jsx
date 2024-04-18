@@ -381,7 +381,7 @@ const[cls,setClass]=useState({
 
   const myView = useMemo(
     () => ({
-   
+  
       schedule: {
         type: 'day',
         
@@ -705,7 +705,7 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
             
                 <div className="md-custom-event-time">
                
-  {data.original.participants.length>0 && (
+  {data.original.participants && (
        <div className="md-custom-event-time">
        Participants:
     
