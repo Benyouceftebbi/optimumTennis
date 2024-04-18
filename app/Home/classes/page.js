@@ -1955,7 +1955,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
           const id = generateRandomUid(13);
           const courtId = parseInt(classTime.Court.match(/\d+/)[0]);
      
-          await saveEvent(id, startDate, endDate, courtId, title, "class", "#FFC0CB")
+          await saveEvent(id, startDate, endDate, courtId, title, "class", "#FFC0CB",classDetails.coachname,classDetails.participants)
           const docData = {
             Participants: classDetails.participantsuid,
             date: startDate,
@@ -2256,7 +2256,8 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                           );
                           setClassDetails((prevDetails) => ({
                             ...prevDetails,
-                            TrainerRef: selectedTrainer.Ref, // Assuming selectedTrainer is the object reference
+                            TrainerRef: selectedTrainer.Ref,
+                            coachname:selectedTrainer.nameandsurname // Assuming selectedTrainer is the object reference
                           }));
                         }}
                         required

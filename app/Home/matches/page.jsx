@@ -114,8 +114,9 @@ const addReservation = async (reservation, participants) => {
 
     // Prepare batched writes
     await setDoc(courtRef, batchUpdate);
-    console.log(id);
-   saveEvent(id,startTime,endTime,parseInt(reservation.courtName.match(/\d+/)[0]))
+    
+  
+   saveEvent(id,startTime,endTime,parseInt(reservation.courtName.match(/\d+/)[0]),"court Booking",'match',"#90EE90",reservation.name,participants)
     // Handle discounts
     if (reservation.discount) {
       console.log("Discount times");
@@ -774,7 +775,7 @@ const ManageMatchesPage = () => {
   const [searchHour, setSearchHour] = useState('');
   const [showModal, setShowModal] = useState(false);
 const [originalList,setOriginalList]=useState()
-const [reservation,setReservation]=useState({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'name',description:'',coachname:'coach',reaccuring:false})
+const [reservation,setReservation]=useState({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'',description:'',coachname:'',reaccuring:false})
 const {courts,setCourts,trainees,trainers}=useAuth()
 const [i,setI]=useState(false)
 useEffect(() => {

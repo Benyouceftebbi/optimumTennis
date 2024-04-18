@@ -54,11 +54,11 @@ const items= [
     path: "/Home/tournaments",
     icon: Trophy,
   },
-  {
-    name: "Notifications",
-    path: "/Home/Notifications",
-    icon: Bell,
-  },
+  // {
+  //   name: "Notifications",
+  //   path: "/Home/Notifications",
+  //   icon: Bell,
+  // },
   {
     name: "Billing",
     path: "/Home/payment",

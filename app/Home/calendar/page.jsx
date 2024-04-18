@@ -256,19 +256,23 @@ const DemoApp = () => {
   [],
   );
   const {courts,trainers,trainees,setClasses,classes,tournaments}=useAuth() 
- 
+  const prevClassesRef = useRef([]);
   useEffect(() => {
-      const fetchData = async (classes,courts,tournaments,trainers) => {
-          try {
-            const {allEvents} = await fetchFirestoreData(classes,courts,tournaments,trainers);
-;
-              setEvents(allEvents);
-          } catch (error) {
-              console.error('Error fetching Firestore data:', error);
-          }
-      };
-
-      fetchData(classes,courts,tournaments,trainers);
+    const fetchData = async (classes, courts, tournaments, trainers) => {
+      try {
+        if (prevClassesRef.current.length==0) {
+          const all = await fetchFirestoreData(classes, courts, tournaments, trainers);
+          setEvents(all.allEvents);
+          prevClassesRef.current = all.classes;
+        }
+      } catch (error) {
+        console.error('Error fetching Firestore data:', error);
+      }
+    };
+ 
+        fetchData(classes,courts,tournaments,trainers);
+      
+    
   }, [courts,classes]);
 
   // Function to handle changes in selected event type
@@ -316,7 +320,7 @@ const DemoApp = () => {
     { id: 2, title: 'Court 2' },
     // Add more courts as needed
 ];
-const [reservation,setReservation]=useState({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'name',description:'',coachname:'coach',reaccuring:false})
+const [reservation,setReservation]=useState({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'',description:'',coachname:'',reaccuring:false})
 
 const [modalIsOpen, setModalIsOpen] = useState(false);
 
@@ -328,7 +332,7 @@ const [modalIsOpen, setModalIsOpen] = useState(false);
   const [info, setInfo] = useState('');
   const [time, setTime] = useState('');
   const [status, setStatus] = useState('');
-  const [reason, setReason] = useState([]);
+  const [reason, setReason] = useState();
   const [location, setLocation] = useState('');
   const [buttonText, setButtonText] = useState('');
   const [buttonType, setButtonType] = useState('');
@@ -496,18 +500,8 @@ const[cls,setClass]=useState({
       const durationInMinutes = Math.floor(durationInMilliseconds / (1000 * 60));
       const startTimeString = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
       const court = courtss.find(obj => obj.id === args.event.resource);
-  console.log("on event start date", startDate);
-      if (args.event.type === 'match') {
-        setReservation((prev) => ({
-          ...prev,
-          date: startDate,
-          startTime: startTimeString,
-          duration: durationInMinutes,
-          courtName: court.name,
-        }));
-        setTempEvent(args.event)
-        openModal('match');
-      } else if (args.event.type === 'class') {
+
+      if (args.event.type === 'class') {
         
 // Get day name for startDate
 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -523,6 +517,19 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
         }))
         openModal('class');
        }
+       else {
+        console.log(args);
+        setReservation((prev) => ({
+          ...prev,
+          date: startDate,
+          startTime: startTimeString,
+          duration: durationInMinutes,
+          courtName: court.name,
+        }));
+        setTempEvent(args.event)
+   
+        openModal('match');
+      }
       // else if (args.event.type === 'tournament') {
       //   setTournament((prev) => ({
       //     ...prev,
@@ -545,8 +552,8 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
   }, []);
 
  
-
-  const saveEvent = (id, startTime, endTime, resource, title, description, color) => {
+                  
+  const saveEvent = (id, startTime, endTime, resource, title, description, color,coachname,participants) => {
     const newEvent = {
       id:id,
       title: title,
@@ -558,10 +565,14 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
       color: color,
       resource: resource,
       type:description,
+      coachname:coachname,
+      participants:participants
     };
+  
 
- 
-    setEvents((prev)=>[...prev,newEvent]);
+console.log(newEvent);
+    setEvents((prev) => [...prev, newEvent]);
+  
   };
 
     const onClose = useCallback(() => {
@@ -682,7 +693,7 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
     };
 
     const customScheduleEvent = useCallback((data) => {
-      console.log(data);
+
       const cat = getCategory(data.original.category);
       if (data.allDay) {
         return (
@@ -698,14 +709,9 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
                 {cat.name}
               </div> */}
               <div className="md-custom-event-details">
-                <div className="md-custom-event-title">{data.original.title}</div>
-                <div className="md-custom-event-time">
-               coach: {data.original.coachname}
-                </div>
-            
-                <div className="md-custom-event-time">
-               
-  {data.original.participants && (
+                <div className="md-custom-event-title">{data.original.coachname}</div>
+          
+                {data.original.participants && (
        <div className="md-custom-event-time">
        Participants:
     
@@ -715,8 +721,7 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
         </div>
   )
 }
-
-</div>
+   
               </div>
             </div>
           </div>
@@ -821,12 +826,12 @@ renderScheduleEvent={customScheduleEvent}
           </div>
           <div className="md-tooltip-info">
             <div className="md-tooltip-title">
-              Coach: <span className="md-tooltip-status md-tooltip-text">{status}</span>
+              {currentEvent?.type==="class"?"Coach:" :"Player:" }<span className="md-tooltip-status md-tooltip-text">{status}</span>
 
             </div>
             <div className="md-tooltip-title">
               Participants: 
-              {reason.length>0 &&
+              {reason &&
    reason.map((player, index) => (
 <span className="md-tooltip-reason md-tooltip-text" key={index}>{player.name}{","}</span>
     ))}
