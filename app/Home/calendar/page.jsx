@@ -11,7 +11,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
-import { collection, getDocs, query, where, getFirestore, Timestamp, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, getFirestore, Timestamp, updateDoc, doc, writeBatch, getDoc } from 'firebase/firestore';
 import { db } from '@/app/firebase';
 import { fetchFirestoreData } from './fetchData';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -546,12 +546,77 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
 
 
 
-  const onEventUpdated = useCallback(() => {
-    // here you can update the event in your storage as well, after drag & drop or resize
-    // ...
-  }, []);
+
 
  
+  const onEventUpdated = async (args) => {
+    try {
+      let eventsRef;
+  
+      if (args.event.type === 'match') {
+        eventsRef = doc(db, "Courts", args.event.courtName, "Reservations", args.event.matchId);
+      } else if (args.event.type === 'class') {
+        eventsRef = doc(db, "Classes", args.event.classId, "attendance", args.event.attendanceId);
+      } else {
+        console.error('Invalid event type:', args.event.type);
+        return;
+      }
+  
+      const batch = writeBatch(db);
+  
+      const oldEventData = args.oldEvent;
+  
+      if (oldEventData && oldEventData.resource === args.event.resource) {
+        // Update existing event
+        if (args.event.type === 'match') {
+          const durationMs = args.event.end - args.event.start;
+          const durationMin = durationMs / 60000;
+          batch.update(eventsRef, {
+            startTime: args.event.start,
+            endTime: args.event.end,
+            date: args.event.start,
+            duration: durationMin
+          });
+        } else if (args.event.type === 'class') {
+          batch.update(eventsRef, {
+            date: args.event.start,
+            end: args.event.end
+          });
+        }
+        console.log('Event updated in Firestore');
+      } else {
+        // Create new event
+        const eventSnapshot = await getDoc(eventsRef);
+        const event = eventSnapshot.data();
+        batch.delete(eventsRef); // Delete old event
+  
+        if (args.event.type === 'match') {
+          const durationMs = args.event.end - args.event.start;
+          const durationMin = durationMs / 60000;
+          batch.set(eventsRef, {
+            startTime: args.event.start,
+            endTime: args.event.end,
+            date: args.event.start,
+            duration: durationMin,
+            courtName: `Court${args.event.resource}`,
+            ...event // Copy other fields from old event if needed
+          });
+        } else if (args.event.type === 'class') {
+          batch.set(eventsRef, {
+            date: args.event.start,
+            end: args.event.end,
+            court: `Court${args.event.resource}`,
+            // ...event // Copy other fields from old event if needed
+          });
+        }
+        console.log('Event added in Firestore');
+      }
+  
+      await batch.commit(); // Commit batched operations
+    } catch (error) {
+      console.error('Error updating event in Firestore:', error);
+    }
+  };
                   
   const saveEvent = (id, startTime, endTime, resource, title, description, color,coachname,participants) => {
     const newEvent = {
@@ -781,8 +846,8 @@ console.log(newEvent);
         data={events}
         clickToCreate={true}
         dragToCreate={true}
-        dragToMove={false}
-        dragToResize={false}
+        dragToMove={true}
+        dragToResize={true}
         showEventTooltip={false}
         onEventHoverIn={handleEventHoverIn}
         onEventHoverOut={handleEventHoverOut} 
@@ -798,7 +863,7 @@ renderScheduleEvent={customScheduleEvent}
           height={1500}
     onEventCreateFailed={handleEventCreateFail}
     onEventUpdateFailed={handleEventUpdateFail}
-       
+      
       />
       </div>
     <div className="mbsc-col-sm-3 bg-white">
