@@ -597,7 +597,8 @@ export const NewItemTournament=({setI,i,setShowModal,tournamentData,toggleForm,s
       requirement:tournamentDetails.restrictions,
       sport:tournamentDetails.sport,
       totalParticipants:tournamentDetails.maximumNumber,
-      type:tournamentDetails.type
+      type:tournamentDetails.type,
+      court:tournamentDetails.location
   
   });
 
@@ -626,8 +627,9 @@ export const NewItemTournament=({setI,i,setShowModal,tournamentData,toggleForm,s
     }
   }
     
-
+  saveEvent(tournamentId,new Date(tournamentDetails.startDate),new Date(tournamentDetails.endDate),parseInt(tournamentDetails.location.match(/\d+/)[0]),"tournament",'tournament',"#ADD8E6",tournamentDetails.name,[{name:"no one"}])
         alert('Tournament Created Successfully');
+        setShowModal(false)
         setI(!i);
 
       } catch (error) {

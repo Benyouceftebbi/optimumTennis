@@ -565,6 +565,19 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
           coachname:'',
         }));
         openModal('tournament');
+      }else{
+        setReservation((prev) => ({
+          ...prev,
+          date: startDate,
+       
+          endDate :endDate,
+          startTime: startTimeString,
+          duration: durationInMinutes,
+          courtName: court.name,
+        }));
+        setTempEvent(args.event)
+   
+        openModal('match');
       }
     },
     [],
@@ -678,7 +691,7 @@ const filterEvents = (startDate, endDate, type, resource) => {
     }
   };
                   
-  const saveEvent = (id, startTime, endTime, resource, title, description, color, coachname, participants) => {
+  const saveEvent = (id, startTime, endTime, resource, title, description, color, coachname,name, participants) => {
     const newEvent = {
       id: id,
       title: title,
@@ -690,8 +703,10 @@ const filterEvents = (startDate, endDate, type, resource) => {
       color: color,
       resource: resource,
       type: description,
-      coachname: coachname,
-      participants: participants
+ 
+      participants: participants,
+      ...(name && { name }),
+      ...(coachname && {coachname }),
     };
   
     // Check if the id matches an existing event in allevents
@@ -929,7 +944,6 @@ const filterEvents = (startDate, endDate, type, resource) => {
         dragTimeStep={30}
     renderResource={renderCustomResource}
 renderScheduleEvent={customScheduleEvent}
-
     externalDrop={true}
           height={1000}
     onEventCreateFailed={handleEventCreateFail}

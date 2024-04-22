@@ -141,7 +141,7 @@ const addReservation = async (reservation, participants) => {
     await setDoc(courtRef, batchUpdate);
     
   
-   saveEvent(id,startTime,endTime,parseInt(reservation.courtName.match(/\d+/)[0]),"court Booking",'match',"#90EE90",reservation.name,participants)
+   saveEvent(id,startTime,endTime,parseInt(reservation.courtName.match(/\d+/)[0]),"court Booking",'match',"#90EE90",reservation.coachname,reservation.name,participants)
     // Handle discounts
     if (reservation.discount) {
       console.log("Discount times");
