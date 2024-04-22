@@ -1115,7 +1115,7 @@ renderScheduleEvent={customScheduleEvent}
             <div className="md-tooltip-title">
               Court: <span className="md-tooltip-location md-tooltip-text">{location}</span>
             </div>
-       {currentEvent.type !="tournament" &&(<>
+       {currentEvent?.type !="tournament" &&(<>
         <button
                       onClick={()=>openEditModal(currentEvent.type)}
                           className="button-white  mt-5 mb-5"
