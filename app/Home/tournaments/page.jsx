@@ -638,7 +638,7 @@ export const NewItemTournament=({setI,i,setShowModal,tournamentData,toggleForm,s
     return(
         <div className={`flex bg-white p-1 mb-1 rounded-lg items-center border-b h-full  border-gray-400`}>
         <div className="fixed inset-0 flex bg-gray-600 bg-opacity-50 justify-end items-center h-full "           style={{ height: "calc(100% )", zIndex: "9999" }}>
-      <button onClick={()=>setShowModal(false)} className="absolute top-0 right-0 m-3 text-gray-500 hover:text-gray-700 focus:outline-none">
+      <button onClick={toggleForm} className="absolute top-0 right-0 m-3 text-gray-500 hover:text-gray-700 focus:outline-none">
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
       </svg>

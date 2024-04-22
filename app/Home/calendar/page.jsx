@@ -271,7 +271,7 @@ const DemoApp = () => {
         fetchData(classes,courts,tournaments,trainers,trainees);
       
     
-  }, [courts,classes]);
+  }, [courts,classes,tournaments]);
 
   // Function to handle changes in selected event type
   const handleEventTypeChange = (event) => {
@@ -548,7 +548,7 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
           endDate :endDate,
           startTime: startTimeString,
           duration: durationInMinutes,
-          location: court.name,
+          courtName: court.name,
         }));
         setTempEvent(args.event)
    

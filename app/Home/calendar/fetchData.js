@@ -85,18 +85,27 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers,tr
     
     const allClasses = (await Promise.all(eventsPromises)).flat();
 
-    const tournamentsEvents = tournaments.map(doc => ({
-        title: doc.type,
-        start: new Date(doc.date.toDate()), // Assuming start is a Firestore timestamp
-        end: new Date(doc.end.toDate()), // Assuming end is a Firestore timestamp
-        type: 'tournament',
-        tournamentId:doc.id,
-        courtName:doc.location,
-        resource:parseInt(doc.location.match(/\d+/)[0]),
-        color:"#ADD8E6 ",
-        ...doc
-    }));
-
+    const tournamentsEvents = tournaments.map(doc => {
+      const { type, date, end, id, court, participants, name, ...rest } = doc;
+      const start = date ? new Date(date.toDate()) : null;
+      const endDate = end ? new Date(end.toDate()) : null;
+      const resource = court ? parseInt(court.match(/\d+/)[0]) : null;
+  
+      return {
+          title: type,
+          start,
+          end: endDate,
+          type: 'tournament',
+          tournamentId: id,
+          courtName: court,
+          resource,
+          color: "#ADD8E6",
+          participants,
+          name,
+          ...rest // Spread the rest of the properties
+      };
+  });
+  
     // Fetch court reservations data and construct events
 
     const courtsWithReservations = [];
