@@ -112,7 +112,7 @@ useEffect(()=>{
 
 },[reservation.date,reservation.duration,reservation.startTime])
 
-const addReservation = async (reservation, participants) => {
+const addReservation = async (reservation) => {
   try {
     const discount = reservation.discount ? JSON.parse(reservation.discount) : null;
     const id = generateRandom13DigitNumber();
@@ -141,7 +141,9 @@ const addReservation = async (reservation, participants) => {
     await setDoc(courtRef, batchUpdate);
     
   
-   saveEvent(id,startTime,endTime,parseInt(reservation.courtName.match(/\d+/)[0]),"court Booking",'match',"#90EE90",reservation.coachname,reservation.name,participants)
+   saveEvent(courtRef.id,startTime,endTime,parseInt(reservation.courtName.match(/\d+/)[0]),
+   "court Booking",'match',"#90EE90",reservation.coachname,reservation.name,
+   participants,reservation.matchType,)
     // Handle discounts
     if (reservation.discount) {
       console.log("Discount times");
@@ -259,7 +261,7 @@ const handleSubmit = async (event) => {
         newDate.setMinutes(minutes);
         const startTime = new Date(newDate);
          await addReservation({...reservation,startTime:startTime});
-     setReservation({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'name',description:'',coachname:'coach',reaccuring:false})
+     setReservation({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'',description:'',coachname:'',reaccuring:false})
        alert('Reservation submitted successfully!');
      setShowModal(false);
    
@@ -296,7 +298,7 @@ const handleSubmit = async (event) => {
       
       //   // Wait for all reservations to be added
  await Promise.all(reservationPromises);
-       setReservation({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'name',description:'',coachname:'coach',reaccuring:false})
+       setReservation({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'',description:'',coachname:'',reaccuring:false})
           alert('Reservation submitted successfully!');
        setShowModal(false);
       }
@@ -310,7 +312,7 @@ const handleSubmit = async (event) => {
 };
 
 const handleClose = () => {
-  setReservation({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'name',description:'',coachname:'coach',reaccuring:false})
+  setReservation({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'',description:'',coachname:'',reaccuring:false})
   setShowModal(false);
 
 };

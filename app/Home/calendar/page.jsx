@@ -425,8 +425,57 @@ const[cls,setClass]=useState({
      const event = args.event;
     const resource = courtss.find((dr) => dr.id === event.resource);
     const time = formatDate('hh:mm A', new Date(event.start)) + ' - ' + formatDate('hh:mm A', new Date(event.end));
+    const startDate = new Date(args.event.start);
+    const endDate = new Date(args.event.end);
+    const durationInMilliseconds = endDate.getTime() - startDate.getTime();
+    const durationInMinutes = Math.floor(durationInMilliseconds / (1000 * 60));
+    const startTimeString = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
+    const court = courtss.find(obj => obj.id === args.event.resource);
+    const filteredEvents = filterEvents(startDate, endDate, args.event.classType || "junior", args.event.resource);
+   
+    setAvailableEvents(filteredEvents)
+    if (args.event.type === 'class') {
+      
+// Get day name for startDate
+const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const dayName = dayNames[startDate.getDay()];
 
-    setCurrentEvent(event);
+// Format startTime and endTime
+const startTimeString = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+setCurrentEvent((prev)=>({
+        ...prev,
+          classTime: [{ day: dayName, startTime: startTimeString, endTime: endTimeString,Court:court.name,}],type:'class',color:"#FFC0CB",
+      }))
+   
+     }
+     else if(args.event.type === 'match') {
+
+      setCurrentEvent({
+        date: startDate,
+        endDate :endDate,
+        startTime: startTimeString,
+        duration: durationInMinutes,
+        courtName: court.name,
+        ...event
+      });
+      setTempEvent(args.event)
+ 
+     
+    }
+    else if (args.event.type === 'tournament') {
+      setCurrentEvent((prev) => ({
+        ...prev,
+        date: startDate,
+        startTime: startTimeString,
+        duration: durationInMinutes,
+        location: court.name,
+        prizes:[],
+        coachname:'',
+      }));
+
+    }
 
 
       setStatus(event.name);
@@ -575,6 +624,7 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
           duration: durationInMinutes,
           courtName: court.name,
         }));
+        console.log(court.name);
         setTempEvent(args.event)
    
         openModal('match');
@@ -690,26 +740,87 @@ const filterEvents = (startDate, endDate, type, resource) => {
       console.error('Error updating event in Firestore:', error);
     }
   };
-                  
-  const saveEvent = (id, startTime, endTime, resource, title, description, color, coachname,name, participants) => {
-    const newEvent = {
-      id: id,
-      title: title,
-      description: description,
-      start: startTime,
-      end: endTime,
-      allDay: false,
-      status: "not paid",
-      color: color,
-      resource: resource,
-      type: description,
- 
-      participants: participants,
-      ...(name && { name }),
-      ...(coachname && {coachname }),
-    };
+  const colors = [
+    '#FFC0CB', // Pink
+    '#ADD8E6', // Light Blue
+    '#90EE90', // Light Green
+    '#FFD700', // Gold
+    '#FFA07A', // Light Salmon
+    '#20B2AA', // Light Sea Green
+    '#DDA0DD', // Plum
+    '#87CEEB', // Sky Blue
+    '#FF6347', // Tomato
+    '#FFB6C1', // Light Pink
+    '#7FFFD4', // Aquamarine
+    '#B0C4DE', // Light Steel Blue
+    '#FFE4B5', // Moccasin
+    '#9370DB', // Medium Purple
+    '#F0E68C', // Khaki
+  ]; 
+const assignTrainerColors = (trainers) => {
+// Add more colors as needed
   
-    // Check if the id matches an existing event in allevents
+    const trainerColors = {};
+  
+    trainers.forEach((trainer, index) => {
+      trainerColors[trainer.nameandsurname] = colors[index % colors.length];
+    });
+  
+    return trainerColors;
+  };  
+  const traineeColorPairs = [
+    '#7FFFD4', // Aquamarine
+    '#B0C4DE', // Light Steel Blue
+    '#FFE4B5', // Moccasin
+    '#9370DB', // Medium Purple
+    '#F0E68C', // Khaki
+    '#00FFFF', // Cyan
+    '#FF00FF', // Magenta
+    '#FFFF00', // Yellow
+    '#00FF00', // Lime
+    '#FF0000', // Red
+  ];
+  const assignTraineeColors = (trainees) => {
+    // Add more colors as needed
+      
+        const traineeColors = {};
+  
+        trainees.forEach((trainer, index) => {
+          traineeColors[trainer.nameandsurname] = traineeColorPairs[index % traineeColorPairs.length];
+        });
+      
+        return traineeColors;
+      };              
+  const saveEvent = (id, startTime, endTime, resource, title, description, color, coachname, name, participants,matchType) => {
+    const colors=assignTrainerColors(trainers)
+    const traineecolor=assignTraineeColors(trainees)
+    const newEvent = {
+        id: id,
+        title: title,
+        description: description,
+        start: startTime,
+        end: endTime,
+        allDay: false,
+        status: "not paid",
+        color: colors[coachname] || traineecolor[name],
+        resource: resource,
+        type: description,
+        participants: participants,
+        ...(name && { name }), // Include name only if it exists
+        ...(coachname && { coachname }), 
+        ...(matchType && { matchType}), 
+        [`${description}Id`]:id,
+        courtName:`Court${resource}`
+     
+    };
+      console.log("new ",newEvent);
+    // Accessing properties from ...reservation
+    if (reservation.length > 0) {
+        console.log('Additional properties from reservation:', reservation);
+        // Example: Accessing a specific property from ...reservation
+        const additionalProperty = reservation[0]; // Access the first property in ...reservation
+        console.log('Additional property:', additionalProperty);
+    }
     const index = events.findIndex(event => event.id === id);
   
     if (index !== -1) {
@@ -720,8 +831,11 @@ const filterEvents = (startDate, endDate, type, resource) => {
     } else {
       // Add the new event if no match is found
       setEvents(prevEvents => [...prevEvents, newEvent]);
-    }
-  };
+    } 
+    };
+  
+
+  
 
     const onClose = useCallback(() => {
   
@@ -1001,13 +1115,15 @@ renderScheduleEvent={customScheduleEvent}
             <div className="md-tooltip-title">
               Court: <span className="md-tooltip-location md-tooltip-text">{location}</span>
             </div>
-            <button
+       {currentEvent.type !="tournament" &&(<>
+        <button
                       onClick={()=>openEditModal(currentEvent.type)}
                           className="button-white  mt-5 mb-5"
                         >
                           Edit reservation
                         </button>
                         <button className="px-3 py-1 button-red rounded "  onClick={()=>deleteFirestoreDocument()}>Delete reservation</button>
+       </>)  }
           </div>
         </div>
       </Popup>
