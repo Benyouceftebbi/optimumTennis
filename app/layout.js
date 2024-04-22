@@ -1,7 +1,7 @@
 
 import { Inter } from "next/font/google";
 import "../styles/global.css";
-import NextTopLoader from "nextjs-toploader";
+import NextTopLoader from 'nextjs-toploader';
 import { AppProvider } from "@/context/AuthContext";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -17,13 +17,26 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-      <NextTopLoader height={200}/>
-        <div className="flex min-h-screen w-full bg-slate-100">
+      
+
+
         <AppProvider>
+        <NextTopLoader
+      zIndex={999}
+ color="#2299DD"
+ initialPosition={0.08}
+ crawlSpeed={200}
+ height={3}
+ crawl={true}
+ showSpinner={true}
+ easing="ease"
+ speed={200}
+ shadow="0 0 10px #2299DD,0 0 5px #2299DD"
+/>
             {children}
           </AppProvider>
       
-        </div>
+  
       </body>
     </html>
   );

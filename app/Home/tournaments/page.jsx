@@ -504,9 +504,10 @@ const generateRandomUid = (length) => {
     const uid = uuidv4().replace(/-/g, ''); // Remove hyphens
     return uid.slice(0, length); // Get the first 'length' characters
   };
-const NewItem=({setI,i,setShowModal,courts})=>{
+export const NewItemTournament=({setI,i,setShowModal,tournamentData,toggleForm,saveEvent})=>{
+  const {courts}=useAuth()
     const [isSubmitting,setIsSubmitting]=useState(false)
-    const [tournamentDetails, setTournamentDetails] = useState({
+    const [tournamentDetails, setTournamentDetails] = useState(tournamentData?tournamentData:{
       name: '',
       sport: '',
       location: '',
@@ -636,7 +637,7 @@ const NewItem=({setI,i,setShowModal,courts})=>{
     };
     return(
         <div className={`flex bg-white p-1 mb-1 rounded-lg items-center border-b h-full  border-gray-400`}>
-        <div className="fixed inset-0 flex bg-gray-600 bg-opacity-50 justify-end items-center h-full " style={{ height: 'calc(100% )' }}>
+        <div className="fixed inset-0 flex bg-gray-600 bg-opacity-50 justify-end items-center h-full "           style={{ height: "calc(100% )", zIndex: "9999" }}>
       <button onClick={()=>setShowModal(false)} className="absolute top-0 right-0 m-3 text-gray-500 hover:text-gray-700 focus:outline-none">
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -730,8 +731,8 @@ const NewItem=({setI,i,setShowModal,courts})=>{
                       >
                         <option value=''>choose a court</option>
                         {courts.map((court,index) => (
-                          <option key={index} value={court} >
-                            {court}
+                          <option key={index} value={court.name} >
+                            {court.name}
                           </option>
                         ))}
                       </select>
@@ -1977,7 +1978,7 @@ const [Original,setOriginal]=useState([])
               </div>
             </div>
 {showModal && (
- <NewItem setI={setI} i={i} setShowModal={setShowModal} courts={courts}/>
+ <NewItemTournament setI={setI} i={i} setShowModal={setShowModal} courts={courts}/>
   )}
 
 

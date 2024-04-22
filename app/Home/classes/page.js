@@ -1180,7 +1180,7 @@ const UpcomingClasses = ({ classes, setI, i, canceled, classId }) => {
   );
 };
 
-const Item = ({ item, onNavigate, i, setI, trainers, trainees }) => {
+export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,setShowModal}) => {
   const [classDetails, setClassDetails] = useState(item);
   const [showDetails, setShowDetails] = useState(false);
   const courts = [
@@ -1312,66 +1312,66 @@ const Item = ({ item, onNavigate, i, setI, trainers, trainees }) => {
       alert("No changes to submit.");
     }
   };
-console.log(classDetails.RegistrationDeadLine);
+
   return (
-    <div
-      className="bg-gray-100 p-1 rounded-md cursor-pointer hover:shadow-lg relative font-semibold text-gray-600"
-      style={{
-        width: "300px",
-        height: "300px",
+    // <div
+    //   className="bg-gray-100 p-1 rounded-md cursor-pointer hover:shadow-lg relative font-semibold text-gray-600"
+    //   style={{
+    //     width: "300px",
+    //     height: "300px",
 
-        margin: "10px",
-        padding: "20px",
-        border: "1px solid #ccc",
-        borderRadius: "8px",
-        color: "#000", // Setting text color to black
-      }}
-    >
-      <div className="flex items-start">
-        <div>
-          {previous.image && (
-            <img
-              src={previous.image}
-              alt="Class"
-              className="w-16 h-16 rounded-full"
-            />
-          )}
-        </div>
-        <div className="ml-4">
-          <p className="text-lg font-semibold">{previous.className}</p>
-          <p className="text-sm">
-            Time: {previous.classTime[0].startTime} -{" "}
-            {previous.classTime[0].endTime}, {previous.classTime[0].day}
-          </p>
+    //     margin: "10px",
+    //     padding: "20px",
+    //     border: "1px solid #ccc",
+    //     borderRadius: "8px",
+    //     color: "#000", // Setting text color to black
+    //   }}
+    // >
+    //   <div className="flex items-start">
+    //     <div>
+    //       {previous.image && (
+    //         <img
+    //           src={previous.image}
+    //           alt="Class"
+    //           className="w-16 h-16 rounded-full"
+    //         />
+    //       )}
+    //     </div>
+    //     <div className="ml-4">
+    //       <p className="text-lg font-semibold">{previous.className}</p>
+    //       <p className="text-sm">
+    //         Time: {previous.classTime[0].startTime} -{" "}
+    //         {previous.classTime[0].endTime}, {previous.classTime[0].day}
+    //       </p>
 
-          <div className="items-start w-full h-px bg-gray-400 my-2 mt-8 ml-0"></div>
-          <div className="flex flex-wrap mb-2">
-            {previous.participants &&
-              previous.participants.map((participant, index) => (
-                <img
-                  key={index}
-                  src={participant.image}
-                  alt={`Participant ${index + 1}`}
-                  className="w-8 h-8 rounded-full mr-1"
-                />
-              ))}
-          </div>
+    //       <div className="items-start w-full h-px bg-gray-400 my-2 mt-8 ml-0"></div>
+    //       <div className="flex flex-wrap mb-2">
+    //         {previous.participants &&
+    //           previous.participants.map((participant, index) => (
+    //             <img
+    //               key={index}
+    //               src={participant.image}
+    //               alt={`Participant ${index + 1}`}
+    //               className="w-8 h-8 rounded-full mr-1"
+    //             />
+    //           ))}
+    //       </div>
 
-          <button
-            className="bg-blue-500 text-white py-2 px-4 rounded-lg mt-20 ml-10"
-            onClick={toggleDetails}
-          >
-            View Details
-          </button>
-        </div>
-      </div>
-      {showDetails && (
+    //       <button
+    //         className="bg-blue-500 text-white py-2 px-4 rounded-lg mt-20 ml-10"
+    //         onClick={toggleDetails}
+    //       >
+    //         View Details
+    //       </button>
+    //     </div>
+    //   </div>
+
         <div
           className="fixed inset-0 flex justify-end items-center h-full overflow-auto bg-gray-600 bg-opacity-50"
           style={{ height: "calc(100% )", zIndex: "9999" }}
         >
           <button
-            onClick={toggleDetails}
+            onClick={toggleForm}
             className="absolute top-0 right-0 m-3 text-gray-500 hover:text-gray-700 focus:outline-none"
           >
             <svg
@@ -1838,12 +1838,17 @@ console.log(classDetails.RegistrationDeadLine);
             )}
           </div>
         </div>
-      )}
-    </div>
+      
+    // </div>
   );
 };
 
-export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, setClassDetails,saveEvent,setShowModal,setEvents}) => {
+export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, setClassDetails,saveEvent,setShowModal,setEvents,fiteredEvents}) => {
+  const filterTrainers =(filteredEvents) => {
+    const relevantCoachNames = new Set(filteredEvents.map((event) => event.coachname));
+    return trainers.filter((trainer) => !relevantCoachNames.has(trainer.nameandsurname));
+  }
+  const filteredTrainers=filterTrainers(fiteredEvents)
   const [selectedDateTime, setSelectedDateTime] = useState([new Date()]);
   const [selectedDurations, setSelectedDurations] = useState([60]);
   const [showDetails, setShowDetails] = useState(false);
@@ -2225,6 +2230,22 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                       <option value="Private">Private</option>
                     </select>
                   </div>
+                  <div className="flex flex-col">
+                    <strong className="text-gray-600 font-semibold">
+                     Class type
+                    </strong>
+
+                    <select
+                      className="rounded-lg"
+                      name="classType"
+                      required
+                      onChange={handleInputChange}
+                    >
+                    
+                      <option value="junior">Junoir</option>
+                      <option value="adult">Adult</option>
+                    </select>
+                  </div>
                   <div className="flex flex-col rounded-lg">
                     <strong className="text-gray-600 font-semibold">
                       Duration(weeks)
@@ -2263,7 +2284,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                         required
                       >
                         <option value="">select Trainer</option>
-                        {trainers.map((trainer, index) => (
+                        {filteredTrainers.map((trainer, index) => (
                           <option
                             key={trainer.id}
                             value={trainer.nameandsurname}

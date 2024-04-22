@@ -11,13 +11,14 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
-import { collection, getDocs, query, where, getFirestore, Timestamp, updateDoc, doc, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, getFirestore, Timestamp, updateDoc, doc, writeBatch, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/app/firebase';
 import { fetchFirestoreData } from './fetchData';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import { useAuth } from '@/context/AuthContext';
 import { MatchDetails } from '../matches/page';
-import { NewItem } from '../classes/page';
+import { Item, NewItem } from '../classes/page';
+import { NewItemTournament } from '../tournaments/page';
     // Function to calculate the difference in days based on the given day string
     const dayDiff = (day) => {
       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -111,14 +112,14 @@ const tasks = [
     length: '1 h',
     type:'match'
   },
-  // {
-  //   title: 'Tournament',
-  //   color: '#cd6957',
-  //   start: '08:00',
-  //   end: '10:00',
-  //   length: '2 h',
-  //   type:'tournament'
-  // },
+  {
+    title: 'Tournament',
+    color: '#cd6957',
+    start: '08:00',
+    end: '11:00',
+    length: '3 h',
+    type:'tournament'
+  },
 
 ];
 
@@ -141,7 +142,7 @@ function Task(props) {
   return (
     <div ref={setDragElm} style={{ background: props.data.color }} className="external-event-task">
       <div>{props.data.title}</div>
-      <div>{props.data.length}</div>
+   
       <Draggable dragData={props.data} element={draggable} />
     </div>
   );
@@ -247,21 +248,18 @@ const DemoApp = () => {
       name: 'Court12',
       cssClass: 'md-col-tick-border',
     },
-    {
-      id: 13,
-      name: 'Court13',
-      cssClass: 'md-col-tick-border',
-    },
+
   ],
   [],
   );
   const {courts,trainers,trainees,setClasses,classes,tournaments}=useAuth() 
+  const [availableEvents,setAvailableEvents]=useState(trainers)
   const prevClassesRef = useRef([]);
   useEffect(() => {
-    const fetchData = async (classes, courts, tournaments, trainers) => {
+    const fetchData = async (classes, courts, tournaments, trainers,trainees) => {
       try {
         if (prevClassesRef.current.length==0) {
-          const all = await fetchFirestoreData(classes, courts, tournaments, trainers);
+          const all = await fetchFirestoreData(classes, courts, tournaments, trainers,trainees);
           setEvents(all.allEvents);
           prevClassesRef.current = all.classes;
         }
@@ -270,7 +268,7 @@ const DemoApp = () => {
       }
     };
  
-        fetchData(classes,courts,tournaments,trainers);
+        fetchData(classes,courts,tournaments,trainers,trainees);
       
     
   }, [courts,classes]);
@@ -323,11 +321,13 @@ const DemoApp = () => {
 const [reservation,setReservation]=useState({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'',description:'',coachname:'',reaccuring:false})
 
 const [modalIsOpen, setModalIsOpen] = useState(false);
-
+const [editModalIsOpen, setEditModalIsOpen] = useState(false);
   const [isOpen, setOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
+  const [editModalType,setEditModalType] = useState(null);
   const [anchor, setAnchor] = useState(null);
   const [currentEvent, setCurrentEvent] = useState(null);
+  console.log(currentEvent);
   const [closeOnOverlay, setCloseOnOverlay] = useState(false);
   const [info, setInfo] = useState('');
   const [time, setTime] = useState('');
@@ -339,6 +339,7 @@ const [modalIsOpen, setModalIsOpen] = useState(false);
   const [bgColor, setBgColor] = useState('');
   const [isToastOpen, setToastOpen] = useState(false);
   const [toastText, setToastText] = useState();
+  const [tournament,setTournament]=useState()
   const [tempEvent,setTempEvent]=useState()
 const[cls,setClass]=useState({
   classTime: [{ day: "Monday", startTime: "13:00", endTime: "14:00" }],
@@ -353,6 +354,10 @@ const[cls,setClass]=useState({
   const openModal = (type) => {
     setModalType(type);
     setModalIsOpen(true)
+  };
+  const openEditModal = (type) => {
+ setEditModalType(type);
+  setEditModalIsOpen(true)
   };
   const handleEventCreateFail = useCallback(() => {
     setToastText("Can't create event on this date");
@@ -400,16 +405,31 @@ const[cls,setClass]=useState({
     }),
     [],
   );
-
+  const deleteFirestoreDocument = async () => {
+    if (currentEvent.type === 'class') {
+      const docRef = doc(db, 'Classes', currentEvent.classId, 'attendance', currentEvent.attendanceId);
+      await deleteDoc(docRef);
+      setEvents((prev) => prev.filter((event) => event.id !== currentEvent.id));
+    } else if  (currentEvent.type === 'match') {
+      const docRef = doc(db, 'Courts', currentEvent.courtName, 'Reservations', currentEvent.matchId);
+      await deleteDoc(docRef);
+      setEvents((prev) => prev.filter((event) => event.id !== currentEvent.id));
+    }
+    else {
+      const docRef = doc(db, 'Competitions', currentEvent.tournamentId);
+      await deleteDoc(docRef);
+      setEvents((prev) => prev.filter((event) => event.id !== currentEvent.id));
+    }
+  };
   const openTooltip = useCallback((args, closeOption) => {
-    const event = args.event;
+     const event = args.event;
     const resource = courtss.find((dr) => dr.id === event.resource);
     const time = formatDate('hh:mm A', new Date(event.start)) + ' - ' + formatDate('hh:mm A', new Date(event.end));
 
     setCurrentEvent(event);
 
 
-      setStatus(event.coachname);
+      setStatus(event.name);
       setButtonText('Cancel appointment');
       setButtonType('warning');
 
@@ -433,7 +453,7 @@ const[cls,setClass]=useState({
   const handleEventHoverIn = useCallback(
     (args) => {
       openTooltip(args, false);
-     
+      
     },
     [openTooltip],
   );
@@ -500,7 +520,9 @@ const[cls,setClass]=useState({
       const durationInMinutes = Math.floor(durationInMilliseconds / (1000 * 60));
       const startTimeString = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
       const court = courtss.find(obj => obj.id === args.event.resource);
-
+      const filteredEvents = filterEvents(startDate, endDate, args.event.classType || "junior", args.event.resource);
+     
+      setAvailableEvents(filteredEvents)
       if (args.event.type === 'class') {
         
 // Get day name for startDate
@@ -517,47 +539,71 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
         }))
         openModal('class');
        }
-       else {
-        console.log(args);
+       else if(args.event.type === 'match') {
+
         setReservation((prev) => ({
           ...prev,
           date: startDate,
+       
+          endDate :endDate,
           startTime: startTimeString,
           duration: durationInMinutes,
-          courtName: court.name,
+          location: court.name,
         }));
         setTempEvent(args.event)
    
         openModal('match');
       }
-      // else if (args.event.type === 'tournament') {
-      //   setTournament((prev) => ({
-      //     ...prev,
-      //     date: startDate,
-      //     startTime: startTimeString,
-      //     duration: durationInMinutes,
-      //     courtName: court.name,
-      //   }));
-      //   openModal('tournament');
-      // }
+      else if (args.event.type === 'tournament') {
+        setTournament((prev) => ({
+          ...prev,
+          date: startDate,
+          startTime: startTimeString,
+          duration: durationInMinutes,
+          location: court.name,
+          prizes:[],
+          coachname:'',
+        }));
+        openModal('tournament');
+      }
     },
     [],
   );
 
 
 
+const filterEvents = (startDate, endDate, type, resource) => {
+  return events.filter((event) => {
+    const eventStart = event.start;
+    const eventEnd = event.end;
+    const newEventStart = startDate;
+    const newEventEnd = endDate;
 
+    // Check if the new event overlaps with the existing event
+    const overlapsStart = newEventStart < eventEnd && newEventEnd > eventStart;
+    const overlapsEnd = newEventEnd > eventStart && newEventEnd < eventEnd;
+    const overlapsWithin = newEventStart >= eventStart && newEventEnd <= eventEnd;
+
+    // Filter out events that overlap in any form
+    const overlaps = overlapsStart || overlapsEnd || overlapsWithin;
+    const isSameEvent = newEventStart === eventStart && newEventEnd === eventEnd;
+    
+    return (overlaps && !isSameEvent) && event.classType === type && event.resource === resource;
+  });
+};
 
  
   const onEventUpdated = async (args) => {
     try {
       let eventsRef;
-  
+      
       if (args.event.type === 'match') {
         eventsRef = doc(db, "Courts", args.event.courtName, "Reservations", args.event.matchId);
       } else if (args.event.type === 'class') {
         eventsRef = doc(db, "Classes", args.event.classId, "attendance", args.event.attendanceId);
-      } else {
+      }  else if (args.event.type === 'tournament') {
+        eventsRef = doc(db, 'Competitions', args.event.tournamentId);
+      }else {
         console.error('Invalid event type:', args.event.type);
         return;
       }
@@ -578,6 +624,12 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
             duration: durationMin
           });
         } else if (args.event.type === 'class') {
+          batch.update(eventsRef, {
+            date: args.event.start,
+            end: args.event.end
+          });
+        }
+        else if (args.event.type === 'tournament') {
           batch.update(eventsRef, {
             date: args.event.start,
             end: args.event.end
@@ -609,6 +661,14 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
             // ...event // Copy other fields from old event if needed
           });
         }
+        else if (args.event.type === 'tournament') {
+          batch.set(eventsRef, {
+            date: args.event.start,
+            end: args.event.end,
+            court: `Court${args.event.resource}`,
+            // ...event // Copy other fields from old event if needed
+          });
+        }
         console.log('Event added in Firestore');
       }
   
@@ -618,9 +678,9 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
     }
   };
                   
-  const saveEvent = (id, startTime, endTime, resource, title, description, color,coachname,participants) => {
+  const saveEvent = (id, startTime, endTime, resource, title, description, color, coachname, participants) => {
     const newEvent = {
-      id:id,
+      id: id,
       title: title,
       description: description,
       start: startTime,
@@ -629,15 +689,23 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
       status: "not paid",
       color: color,
       resource: resource,
-      type:description,
-      coachname:coachname,
-      participants:participants
+      type: description,
+      coachname: coachname,
+      participants: participants
     };
   
-
-console.log(newEvent);
-    setEvents((prev) => [...prev, newEvent]);
+    // Check if the id matches an existing event in allevents
+    const index = events.findIndex(event => event.id === id);
   
+    if (index !== -1) {
+      // Replace the existing event with the new one
+      const updatedEvents = [...events];
+      updatedEvents[index] = newEvent;
+      setEvents(updatedEvents);
+    } else {
+      // Add the new event if no match is found
+      setEvents(prevEvents => [...prevEvents, newEvent]);
+    }
   };
 
     const onClose = useCallback(() => {
@@ -647,6 +715,13 @@ console.log(newEvent);
   
       setModalIsOpen(false);
     }, [events]);
+    const onCloseEdit = useCallback(() => {
+  
+ 
+      setEvents([...events]);
+
+    setEditModalIsOpen(false);
+  }, [events]);
     const renderCustomResource = useCallback(
       (resource) => (
         <div className="flex flex-row justify-center align-center items-center " >
@@ -665,13 +740,20 @@ console.log(newEvent);
     const customWithNavButtons = useCallback(
       () => (
         <> 
-          <CalendarNav className="cal-header-nav" />
-          <div className="cal-header-picker">
-          <div className="resource-name">{mySelectedDate.toLocaleString()}</div>
+         <CalendarNav className="cal-header-nav" />
+           <div className="">
+          <div className=" flex-row ">
+          <div className="">Reservations:</div>
+          {tasks.map((task, i) => (
+            <Task key={i} data={task} />
+          ))}
+        </div>
 
           </div>
-          <CalendarPrev className="cal-header-prev" />
+         
           <CalendarToday className="cal-header-today" />
+          <CalendarPrev className="cal-header-prev" />
+
           <CalendarNext className="cal-header-next" />
         </>
       ),
@@ -758,7 +840,7 @@ console.log(newEvent);
     };
 
     const customScheduleEvent = useCallback((data) => {
-
+    
       const cat = getCategory(data.original.category);
       if (data.allDay) {
         return (
@@ -774,7 +856,7 @@ console.log(newEvent);
                 {cat.name}
               </div> */}
               <div className="md-custom-event-details">
-                <div className="md-custom-event-title">{data.original.coachname}</div>
+                <div className="md-custom-event-title">{data.original?.coachname && data.original.coachname != "coach"?data.original.coachname: data.original.name}</div>
           
                 {data.original.participants && (
        <div className="md-custom-event-time">
@@ -808,39 +890,28 @@ console.log(newEvent);
         </div>
       );
     }, []);
+
   return (
-    <div className="container mx-auto  h-full mt-10 ">
-      <div className='flex items-center justify-between'>
+    <div className="  ">
+ 
+<div className='flex items-center justify-between'>
       <h1 className="text-3xl font-bold mb-5">Schedule</h1>
-        <div>
-        <h2 style={{ marginBottom: '10px' }}>Event Type</h2>
-        <select
-         value={selectedEventType} onChange={handleEventTypeChange}
-          style={{
-            padding: '8px',
-            fontSize: '16px',
-            borderRadius: '5px',
-            border: '1px solid #ccc',
-            marginBottom: '20px',
-            width:"200px"
-          }}
-        >
-         
-          <option value="all">All</option>
-          <option value="class">Class</option>
-          <option value="tournament">Tournament</option>
-          <option value="leagues">Leagues</option>
-          <option value="match">Booking</option>
-          
-        </select>
+     
+          <div className=" flex-row flex items-center">
+          <div className="mbsc-form-group-title ">Reservations:</div>
+          {tasks.map((task, i) => (
+            <Task key={i} data={task} />
+          ))}
         </div>
-      </div>
-        
+
+   
+         
+      </div> 
         {/* <div className='bg-white pt-4 border rounded-lg flex-row flex'> */}
-        <div className="mbsc-grid mbsc-no-padding">
-      <div className="mbsc-row">
-        <div className="mbsc-col-sm-9 external-event-calendar">
+        <div className="">
+   
       <Eventcalendar
+
         view={myView}
         resources={courtss}
         data={events}
@@ -860,19 +931,13 @@ console.log(newEvent);
 renderScheduleEvent={customScheduleEvent}
 
     externalDrop={true}
-          height={1500}
+          height={1000}
     onEventCreateFailed={handleEventCreateFail}
     onEventUpdateFailed={handleEventUpdateFail}
       
       />
-      </div>
-    <div className="mbsc-col-sm-3 bg-white">
-          <div className="mbsc-form-group-title ml-4 mt-3">Available Reservations</div>
-          {tasks.map((task, i) => (
-            <Task key={i} data={task} />
-          ))}
-        </div>
-    
+
+
     <Popup
         display="anchored"
         isOpen={isOpen}
@@ -890,10 +955,24 @@ renderScheduleEvent={customScheduleEvent}
             <span className="md-tooltip-time">{time}</span>
           </div>
           <div className="md-tooltip-info">
-            <div className="md-tooltip-title">
-              {currentEvent?.type==="class"?"Coach:" :"Player:" }<span className="md-tooltip-status md-tooltip-text">{status}</span>
+          {currentEvent?.coachname && ( <div className="md-tooltip-title">
+   
+   Coach :<span className="md-tooltip-status md-tooltip-text">{currentEvent.coachname}</span>
+ 
+  </div>)}
+          {currentEvent?.type==="match" && (<div className="md-tooltip-title">
+   
+             Resrvation maker :<span className="md-tooltip-status md-tooltip-text">{status}</span>
 
-            </div>
+            </div>)}
+
+            <div className="md-tooltip-title">
+   
+            <span className="md-tooltip-status md-tooltip-text">
+  Type: {currentEvent?.type ? `${currentEvent.type} (${currentEvent.matchType || ''})` : ''}
+</span>
+
+ </div>
             <div className="md-tooltip-title">
               Participants: 
               {reason &&
@@ -908,24 +987,52 @@ renderScheduleEvent={customScheduleEvent}
             <div className="md-tooltip-title">
               Court: <span className="md-tooltip-location md-tooltip-text">{location}</span>
             </div>
-            {/* <Button color="secondary" className="md-tooltip-view-button" onClick={viewFile}>
-              View patient file
-            </Button>
-            <Button color="danger" variant="outline" className="md-tooltip-delete-button" onClick={deleteApp}>
-              Delete appointment
-            </Button> */}
+            <button
+                      onClick={()=>openEditModal(currentEvent.type)}
+                          className="button-white  mt-5 mb-5"
+                        >
+                          Edit reservation
+                        </button>
+                        <button className="px-3 py-1 button-red rounded "  onClick={()=>deleteFirestoreDocument()}>Delete reservation</button>
           </div>
         </div>
       </Popup>
       <Toast message={toastText} isOpen={isToastOpen} onClose={handleToastClose} />
 
-</div>
 
+      {editModalIsOpen && (
+    <>
+   
+          {editModalType === 'match' && <MatchDetails removeEvent={onCloseEdit}  filteredEvents={availableEvents} saveEvent={saveEvent} setI={setRender}i={render} courts={courts} setShowModal={setEditModalIsOpen} setReservation={setCurrentEvent} 
+    reservationDetails={{
+      ...currentEvent,
+      startTime: `${currentEvent.start.getHours().toString().padStart(2, '0')}:${currentEvent.start.getMinutes().toString().padStart(2, '0')}`,
+      date:currentEvent.start
+   
+    }} trainees={trainees} trainers={trainers}/>}
+          {editModalType === 'class' &&   <Item
+        fiteredEvents={availableEvents}
+          trainers={trainers}
+          trainees={trainees.map((trainee) => ({
+            uid: trainee.id,
+            ...trainee,
+          }))}
+          setI={setClasses}
+          i={render}
+          toggleForm={()=>onCloseEdit()}
+          saveEvent={saveEvent}
+          setShowModal={setEditModalIsOpen} 
+
+          item={currentEvent}
+        />}
+          </>
+      )}
   {modalIsOpen && (
     <>
    
-          {modalType === 'match' && <MatchDetails removeEvent={onClose}  saveEvent={saveEvent} setI={setRender}i={render} courts={courts} setShowModal={setModalIsOpen} setReservation={setReservation} reservationDetails={reservation} trainees={trainees} trainers={trainers}/>}
+          {modalType === 'match' && <MatchDetails removeEvent={onClose}  filteredEvents={availableEvents} saveEvent={saveEvent} setI={setRender}i={render} courts={courts} setShowModal={setModalIsOpen} setReservation={setReservation} reservationDetails={reservation} trainees={trainees} trainers={trainers}/>}
           {modalType === 'class' &&   <NewItem
+        fiteredEvents={availableEvents}
           trainers={trainers}
           trainees={trainees.map((trainee) => ({
             uid: trainee.id,
@@ -939,6 +1046,14 @@ renderScheduleEvent={customScheduleEvent}
           saveEvent={saveEvent}
           setShowModal={setModalIsOpen} 
           setEvents={setEvents}
+        />}
+         {modalType === 'tournament' &&   <NewItemTournament 
+        courts={courts}
+        toggleForm={()=>onClose()}
+       tournamentData={tournament}
+        saveEvent={saveEvent}
+        setShowModal={setModalIsOpen} 
+
         />}
           </>
       )}

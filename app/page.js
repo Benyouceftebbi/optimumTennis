@@ -22,7 +22,7 @@ const DashboardPage = () => {
       onAuthStateChanged(auth, async (user) => {
           if (user) {
   
-              router.replace('/Home/firstpage')
+              router.replace('/Home/calendar')
        
           } else {
               router.push("/Auth")

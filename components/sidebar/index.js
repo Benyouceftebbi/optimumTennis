@@ -15,20 +15,24 @@ import {
   Bell
 } from "lucide-react";
 import SidebarItem from "./item";
+import NextTopLoader from "nextjs-toploader";
+import { useRouter } from "next/router";
+import { useState } from "react";
 
 
 
 const items= [
   {
-    name: "Dashboard",
-    path: "/Home/firstpage",
-    icon: LayoutDashboard,
-  },
-  {
     name: "Calendar",
     path: "/Home/calendar",
     icon: CalendarDays
   },
+  {
+    name: "Dashboard",
+    path: "/Home/firstpage",
+    icon: LayoutDashboard,
+  },
+
   {
     name: "Classes",
     path: "/Home/classes",
@@ -82,16 +86,20 @@ const items= [
 ];
 
 const Sidebar = () => {
+
+
   return (
 
-    <div className="fixed top-0 left-0 min-h-screen w-64 bg-white shadow-lg  p-4">
-      <div className="flex flex-col space-y-10 w-full">
-     <img className="h-50 w-fit" src="/logo-expanded.png" alt="Logo" /> 
-        <div className="flex flex-col space-y-2">
+    <div className=" w-full bg-white shadow-lg  p-4">
+
+      <div className="flex flex-row space-x-10 w-full justify-between">
+
+        <div className="flex flex-row space-x-2">
           {items.map((item, index) => (
             <SidebarItem key={index} item={item} />
           ))}
         </div>
+        <img className="h-10 w-fit" src="/logo-expanded.png" alt="Logo" /> 
       </div>
     </div>
   );

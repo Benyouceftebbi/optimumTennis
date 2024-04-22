@@ -1,10 +1,61 @@
 
 import { collection, getDocs, query, where, getFirestore, Timestamp, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/app/firebase';
+const colors = [
+    '#FFC0CB', // Pink
+    '#ADD8E6', // Light Blue
+    '#90EE90', // Light Green
+    '#FFD700', // Gold
+    '#FFA07A', // Light Salmon
+    '#20B2AA', // Light Sea Green
+    '#DDA0DD', // Plum
+    '#87CEEB', // Sky Blue
+    '#FF6347', // Tomato
+    '#FFB6C1', // Light Pink
+    '#7FFFD4', // Aquamarine
+    '#B0C4DE', // Light Steel Blue
+    '#FFE4B5', // Moccasin
+    '#9370DB', // Medium Purple
+    '#F0E68C', // Khaki
+  ]; 
+const assignTrainerColors = (trainers) => {
+// Add more colors as needed
+  
+    const trainerColors = {};
+  
+    trainers.forEach((trainer, index) => {
+      trainerColors[trainer.nameandsurname] = colors[index % colors.length];
+    });
+  
+    return trainerColors;
+  };
+  const traineeColorPairs = [
+    '#7FFFD4', // Aquamarine
+    '#B0C4DE', // Light Steel Blue
+    '#FFE4B5', // Moccasin
+    '#9370DB', // Medium Purple
+    '#F0E68C', // Khaki
+    '#00FFFF', // Cyan
+    '#FF00FF', // Magenta
+    '#FFFF00', // Yellow
+    '#00FF00', // Lime
+    '#FF0000', // Red
+  ];
+  const assignTraineeColors = (trainees) => {
+    // Add more colors as needed
+      
+        const traineeColors = {};
+  
+        trainees.forEach((trainer, index) => {
+          traineeColors[trainer.nameandsurname] = traineeColorPairs[index % traineeColorPairs.length];
+        });
+      
+        return traineeColors;
+      };
+export  const fetchFirestoreData = async (classes,courts,tournaments,trainers,trainees) => {
 
-export  const fetchFirestoreData = async (classes,courts,tournaments,trainers) => {
-
-
+      const trainerColors = assignTrainerColors(trainers);
+      const traineeColors = assignTraineeColors(trainees);
     const eventsPromises = classes.map(async classData => {
         const attendanceQuery = query(collection(db, `Classes/${classData.id}/attendance`));
         const attendanceSnapshot = await getDocs(attendanceQuery);
@@ -24,9 +75,11 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers) =
             classId: classData.id,
             attendanceId: attendance.attendanceId,
             resource: parseInt(attendance.court.match(/\d+/)[0]),
-            color:"#FFC0CB",
+            color: trainerColors[trainerName] ,
             participants:classData.participants,
-            coachname:trainerName
+            coachname:trainerName,
+            ...classData,
+            
         }));
     });
     
@@ -37,9 +90,11 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers) =
         start: new Date(doc.date.toDate()), // Assuming start is a Firestore timestamp
         end: new Date(doc.end.toDate()), // Assuming end is a Firestore timestamp
         type: 'tournament',
-        tournamentsId:doc.id,
-        resource:parseInt(doc.court.match(/\d+/)[0]),
-        color:"#ADD8E6 "
+        tournamentId:doc.id,
+        courtName:doc.location,
+        resource:parseInt(doc.location.match(/\d+/)[0]),
+        color:"#ADD8E6 ",
+        ...doc
     }));
 
     // Fetch court reservations data and construct events
@@ -61,9 +116,11 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers) =
       matchId: doc.id,
       courtName: doc.courtName,
       resource:parseInt(doc.courtName.match(/\d+/)[0]),
-      color:"#90EE90",
+      color:doc.coachname && doc.coachname != "coach" ? trainerColors[doc.coachname] : traineeColors[doc.name], // Random color if no match found
      participants:doc.players,
      coachname:doc.coachname,
+     name:doc.name,
+     ...doc
 
     }));
 

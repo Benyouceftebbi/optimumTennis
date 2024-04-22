@@ -24,7 +24,27 @@ export const timestampToHourString=(time)=>{
 export const findAvailableCourts = (selectedDate, startTimeString, duration, courts) => {
   // Convert start time string to Date object
   const startTime = new Date(selectedDate);
-  const [hours, minutes] = startTimeString.split(':');
+
+  let hours, minutes;
+  if (typeof startTimeString === 'string' && startTimeString.includes(':')) {
+    // Case when startTimeString is in "hh:mm" format
+    [hours, minutes] = startTimeString.split(':');
+  }  else if (startTimeString instanceof Timestamp) {
+    // Case when startTimeString is a Firestore timestamp
+    const startTimeDate = new Date(startTimeString.toDate()); // Convert Firestore timestamp to JavaScript Date object
+    hours = startTimeDate.getHours();
+    minutes = startTimeDate.getMinutes();
+  } else {
+    // Handle other formats or invalid input
+    console.error('Invalid startTimeString format');
+  }
+  
+  if (hours !== undefined && minutes !== undefined) {
+    console.log(`Hours: ${hours}, Minutes: ${minutes}`);
+  } else {
+    console.error('Failed to extract hours and minutes');
+  }
+
   startTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
 
   // Calculate end time based on start time and duration
@@ -54,14 +74,19 @@ export const findAvailableCourts = (selectedDate, startTimeString, duration, cou
   return availableCourts;
 };
 
-export const MatchDetails=({reservationDetails,setI,i,courts,setShowModal,setReservation,trainers,trainees,setCourts,removeEvent,saveEvent})=>{
-
+export const MatchDetails=({reservationDetails,setI,i,courts,setShowModal,setReservation,trainers,trainees,setCourts,removeEvent,saveEvent,filteredEvents})=>{
+  const filterTrainers =(filteredEvents) => {
+      const relevantCoachNames = new Set(filteredEvents.map((event) => event.coachname));
+      return trainers.filter((trainer) => !relevantCoachNames.has(trainer.nameandsurname));
+    }
+  
+ const filteredTrainers = filterTrainers(filteredEvents);
 const data=useAuth()
 const discounts=data.discounts.filter((discount)=>discount.discountType==='courts')
 const memberships=data.memberships
-const reservation=reservationDetails?reservationDetails:{players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'name',description:'',coachname:'coach',reaccuring:false} 
+const reservation=reservationDetails
 const [aa,setAA]=useState()
-
+const [originalitem,setOrginal]=useState(reservationDetails)
 const [availableCourts,setAvailableCourts]=useState([courts])
 
 const handleInputChange = (e) => {
@@ -173,8 +198,57 @@ const addReservation = async (reservation, participants) => {
     // Handle error or show user notification
   }
 };
+const deepEqual = (obj1, obj2) => {
+  // Check for null or undefined values
+  if (obj1 === null || obj2 === null || typeof obj1 !== 'object' || typeof obj2 !== 'object') {
+    return obj1 === obj2;
+  }
+
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+
+  if (keys1.length !== keys2.length) return false;
+
+  for (const key of keys1) {
+    const val1 = obj1[key];
+    const val2 = obj2[key];
+
+    // Check for undefined values
+    if (val1 === undefined || val2 === undefined) {
+      return false;
+    }
+
+    const areObjects = val1 instanceof Object && val2 instanceof Object;
+
+    if ((areObjects && !deepEqual(val1, val2)) || (!areObjects && val1 !== val2)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+const update=async(originalObject, updatedObject)=>{
+  if (!deepEqual(originalObject, updatedObject)) {
+    // Detected changes, update Firestore with the changed fields
+    const firestoreUpdates = {};
+    for (const key in updatedObject) {
+      if (!deepEqual(originalObject[key], updatedObject[key])) {
+        firestoreUpdates[key] = updatedObject[key];
+      }
+    }
+  await updateDoc(doc(db,"Courts",reservation.courtName,"Reservations",reservation.matchId),firestoreUpdates)
+  saveEvent(reservation.id,reservation.startTime,reservation.endTime,parseInt(reservation.courtName.match(/\d+/)[0]),"court Booking",'match',"#90EE90",reservation.name,participants)
+setShowModal(false)
+    // Update Firestore with the changes in firestoreUpdates object
+    // firestore.collection('yourCollection').doc('yourDoc').update(firestoreUpdates);
+  } else {
+    alert('No changes detected.');
+  }
+}
 const handleSubmit = async (event) => {
   event.preventDefault();
+
+  console.log(deepEqual(reservation,reservationDetails));
   try {
     if(aa!=reservation){
       if (!reservation.reaccuring) {
@@ -402,6 +476,7 @@ function generateTimeArrayFromDate() {
 
   return timeArray;
 }
+
   return    (
     <div className="fixed inset-0 h-full flex bg-gray-600 bg-opacity-50 justify-end items-center overflow-scroll mb-10 z-50" style={{ height: '100%' }}>
       <button onClick={()=>{handleClose();removeEvent()}} className="absolute top-0 right-0 m-3 text-gray-500 hover:text-gray-700 focus:outline-none">
@@ -499,9 +574,29 @@ function generateTimeArrayFromDate() {
     ))}
   </select>
   </div>
+  <div className="flex flex-col">
+            <strong>Reservation Type</strong>
+            <select
+    name="matchType"
+    value={reservation.matchType}
+    onChange={handleInputChange}
+    className="rounded-lg"
+    required 
+  >
+      <option value="">
+        select Type
+      </option>
+      <option  value="single">
+      Single
+      </option>
+      <option  value="double">
+       Double
+      </option>
+  </select>
+  </div>
 <div className="flex flex-col">
             <strong>Select Coach</strong>
-<AutosuggestComponent trainers={trainers} setReservation={setReservation} reservation={reservation} name={reservation.coachname} field={'coachname'}/>
+<AutosuggestComponent trainers={filteredTrainers} setReservation={setReservation} reservation={reservation} name={reservation.coachname} field={'coachname'}/>
   </div>
   {reservation.coachname !== "coach" && reservation.coachname !== "" && ( <div className="flex flex-col ">
             
@@ -623,56 +718,7 @@ setAA(prevReservation => ({
     </div>
 
 
-{reservation.date.seconds &&(  <button onClick={()=>  setShowRefundModal(true)} className="mb-3 px-4 py-2 bg-red-500 text-white rounded-md">Cancel a Match</button>)}
-<Modal
-  isOpen={showRefundModal}
-  onRequestClose={() => setShowRefundModal(false)}
-  contentLabel="Refund Payment Modal"
-  ariaHideApp={false}
-  style={{
-    content: {
-      position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      maxWidth: '90vw', // Set maximum width relative to viewport width
-      maxHeight: '90vh', // Set maximum height relative to viewport height
-      overflow: 'auto', // Enable scrolling if content exceeds modal size
-      backgroundColor: 'white',
-      padding: '1rem',
-      borderRadius: '0.5rem',
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-      zIndex: 99999,
-    },
-    overlay: {
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      zIndex: 99999,
-    },
-  }}
->
-        <h2 className="text-xl font-bold mb-4">Refund Payment</h2>
-        <p className="mb-4">Do you want to refund the payment?</p>
-        <div className="flex justify-between mt-4">
-          <button
-            className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
-            onClick={handleConfirmRefund}
-          >
-            Yes
-          </button>
-          <button
-            className="px-4 py-2 rounded bg-gray-500 text-white hover:bg-gray-600"
-            onClick={cancelMatch}
-          >
-            No
-          </button>
-          <button
-            className="px-4 py-2 rounded bg-red-500 text-white hover:bg-blue-600"
-            onClick={()=>setShowRefundModal(false)}
-          >
-            Cancel Refund
-          </button>
-        </div>
-      </Modal>
+
           </div>
           <div className="flex flex-col my-5">
           <strong>Add Participants </strong>
@@ -755,7 +801,62 @@ setAA(prevReservation => ({
 </div>
         
             </div>
-            <button type="submit" onClick={handleSubmit} className="mb-3 px-4 py-2 bg-blue-500 text-white rounded-md">Submit Reservation</button>
+           { !reservation.id? (<button type="submit" 
+           
+           onClick={handleSubmit} className="mb-3 px-4 py-2 bg-blue-500 text-white rounded-md">Submit Reservation</button>):      
+                ( <button type="submit" onClick={()=>update(originalitem,reservation)} 
+                 className="mb-3 px-4 py-2 bg-blue-500 text-white rounded-md">Edit Reservation</button>)
+          }
+            {/* {reservation.id &&(  <button onClick={()=>  setShowRefundModal(true)} className="mb-3 px-4 py-2 bg-red-500 text-white rounded-md ml-3">Cancel a Match</button>)}
+<Modal
+  isOpen={showRefundModal}
+  onRequestClose={() => setShowRefundModal(false)}
+  contentLabel="Refund Payment Modal"
+  ariaHideApp={false}
+  style={{
+    content: {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      maxWidth: '90vw', // Set maximum width relative to viewport width
+      maxHeight: '90vh', // Set maximum height relative to viewport height
+      overflow: 'auto', // Enable scrolling if content exceeds modal size
+      backgroundColor: 'white',
+      padding: '1rem',
+      borderRadius: '0.5rem',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+      zIndex: 99999,
+    },
+    overlay: {
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      zIndex: 99999,
+    },
+  }}
+>
+        <h2 className="text-xl font-bold mb-4">Refund Payment</h2>
+        <p className="mb-4">Do you want to refund the payment?</p>
+        <div className="flex justify-between mt-4">
+          <button
+            className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
+            onClick={handleConfirmRefund}
+          >
+            Yes Refund
+          </button>
+          <button
+            className="px-4 py-2 rounded bg-gray-500 text-white hover:bg-gray-600"
+            onClick={cancelMatch}
+          >
+         cancel reservation without Refund
+          </button>
+          <button
+            className="px-4 py-2 rounded bg-red-500 text-white hover:bg-blue-600"
+            onClick={()=>setShowRefundModal(false)}
+          >
+            go Back
+          </button>
+        </div>
+      </Modal> */}
         </div>
 
       </div>

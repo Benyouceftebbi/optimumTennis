@@ -540,9 +540,7 @@ const handleInputChange = (e)=> {
     }
   };
   const addUserToClasses = async (selectedClasses, userId,name) => {
-console.log(selectedClasses);
-console.log(userId);
-console.log(name);
+
     selectedClasses.forEach(async (cls) => {
 
         await updateDoc(doc(db,'Classes',cls.id),{
