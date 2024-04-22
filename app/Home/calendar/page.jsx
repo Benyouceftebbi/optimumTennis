@@ -989,7 +989,6 @@ const assignTrainerColors = (trainers) => {
           
                 {data.original.participants && (
        <div className="md-custom-event-time">
-       Participants:
     
         {data.original.participants.map((player, index) => (
           <div key={index}>{player.name}{","}</div>
