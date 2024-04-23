@@ -118,6 +118,7 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers,tr
     const reservationsData = court.reservations
     .filter(doc => doc.type === undefined) // Filter out documents without the 'type' field
     .map(doc => ({
+      ...doc,
       title:"Court Booking",
       start: new Date(doc.startTime.toDate()),
       end: new Date(doc.endTime.toDate()),
@@ -126,10 +127,10 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers,tr
       courtName: doc.courtName,
       resource:parseInt(doc.courtName.match(/\d+/)[0]),
       color:doc.coachname && doc.coachname != "coach" ? trainerColors[doc.coachname] : traineeColors[doc.name], // Random color if no match found
-     participants:doc.players,
+     participants:doc.participants,
      coachname:doc.coachname,
      name:doc.name,
-     ...doc
+
 
     }));
 

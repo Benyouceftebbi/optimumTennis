@@ -327,7 +327,7 @@ const [editModalIsOpen, setEditModalIsOpen] = useState(false);
   const [editModalType,setEditModalType] = useState(null);
   const [anchor, setAnchor] = useState(null);
   const [currentEvent, setCurrentEvent] = useState(null);
-  console.log(currentEvent);
+
   const [closeOnOverlay, setCloseOnOverlay] = useState(false);
   const [info, setInfo] = useState('');
   const [time, setTime] = useState('');
@@ -368,21 +368,6 @@ const[cls,setClass]=useState({
     setToastText("Can't add event on this date");
     setToastOpen(true);
   }, []);
-
-  // const onClose = useCallback(() => {
-  //   setOpen(false);
-  //   setToastText('New task added');
-  //   setToastOpen(true);
-  // }, []);
-
-  const changeSelected = useCallback((event) => {
-    setTechnician(event.value);
-  }, []);
-
-  const handleCloseToast = useCallback(() => {
-    setToastOpen(false);
-  }, []);
-  
 
   const [mySelectedDate, setSelectedDate] = useState(new Date());
 
@@ -434,6 +419,7 @@ const[cls,setClass]=useState({
     const filteredEvents = filterEvents(startDate, endDate, args.event.classType || "junior", args.event.resource);
    
     setAvailableEvents(filteredEvents)
+    
     if (args.event.type === 'class') {
       
 // Get day name for startDate
@@ -451,14 +437,20 @@ setCurrentEvent((prev)=>({
    
      }
      else if(args.event.type === 'match') {
-
+console.log({  ...event,
+  date: startDate,
+  endDate :endDate,
+  startTime: startTimeString,
+  duration: durationInMinutes,
+  courtName: court.name,});
       setCurrentEvent({
+        ...event,
         date: startDate,
         endDate :endDate,
         startTime: startTimeString,
         duration: durationInMinutes,
-        courtName: court.name,
-        ...event
+        courtName: `Court${event.resource}`,
+      
       });
       setTempEvent(args.event)
  
@@ -534,20 +526,6 @@ setCurrentEvent((prev)=>({
     setToastText(message);
     setToastOpen(true);
   }, []);
-  const setStatusButton = useCallback(() => {
-    setOpen(false);
-    const index = events.findIndex((item) => item.id === currentEvent.id);
-    const newApp = [...events];
-    newApp[index].confirmed = !events[index].confirmed;
-    setEvents(newApp);
-    showToast('Appointment ' + (currentEvent.confirmed ? 'confirmed' : 'canceled'));
-  }, [events, currentEvent, showToast]);
-
-  const viewFile = useCallback(() => {
-    setOpen(false);
-    showToast('View file');
-  }, [showToast]);
-
   const deleteApp = useCallback(() => {
     setEvents(events.filter((item) => item.id !== currentEvent.id));
     setOpen(false);
@@ -624,7 +602,6 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
           duration: durationInMinutes,
           courtName: court.name,
         }));
-        console.log(court.name);
         setTempEvent(args.event)
    
         openModal('match');
@@ -791,9 +768,10 @@ const assignTrainerColors = (trainers) => {
       
         return traineeColors;
       };              
-  const saveEvent = (id, startTime, endTime, resource, title, description, color, coachname, name, participants,matchType) => {
+  const saveEvent = (id, startTime, endTime, resource, title, description, coachname, name, participants,matchType,duration) => {
     const colors=assignTrainerColors(trainers)
     const traineecolor=assignTraineeColors(trainees)
+   
     const newEvent = {
         id: id,
         title: title,
@@ -809,11 +787,13 @@ const assignTrainerColors = (trainers) => {
         ...(name && { name }), // Include name only if it exists
         ...(coachname && { coachname }), 
         ...(matchType && { matchType}), 
+        ...(duration && { duration}), 
         [`${description}Id`]:id,
-        courtName:`Court${resource}`
+        courtName:`Court${resource}`,
+        date:startTime
      
     };
-      console.log("new ",newEvent);
+  
     // Accessing properties from ...reservation
     if (reservation.length > 0) {
         console.log('Additional properties from reservation:', reservation);
@@ -826,7 +806,7 @@ const assignTrainerColors = (trainers) => {
     if (index !== -1) {
       // Replace the existing event with the new one
       const updatedEvents = [...events];
-      updatedEvents[index] = newEvent;
+      updatedEvents[index] = {...currentEvent,...newEvent};
       setEvents(updatedEvents);
     } else {
       // Add the new event if no match is found
@@ -866,28 +846,6 @@ const assignTrainerColors = (trainers) => {
       ),
       [],
     );
-    const customWithNavButtons = useCallback(
-      () => (
-        <> 
-         <CalendarNav className="cal-header-nav" />
-           <div className="">
-          <div className=" flex-row ">
-          <div className="">Reservations:</div>
-          {tasks.map((task, i) => (
-            <Task key={i} data={task} />
-          ))}
-        </div>
-
-          </div>
-         
-          <CalendarToday className="cal-header-today" />
-          <CalendarPrev className="cal-header-prev" />
-
-          <CalendarNext className="cal-header-next" />
-        </>
-      ),
-    
-    );
     const getCategory = (id) => {
       switch (id) {
         case 1:
@@ -923,50 +881,6 @@ const assignTrainerColors = (trainers) => {
       }
     };
   
-    const getParticipant = (id) => {
-      switch (id) {
-        case 1:
-          return {
-            name: 'Lisa',
-            img: 'https://img.mobiscroll.com/demos/f1.png',
-          };
-        case 2:
-          return {
-            name: 'Sharon',
-            img: 'https://img.mobiscroll.com/demos/f2.png',
-          };
-        case 3:
-          return {
-            name: 'Emily',
-            img: 'https://img.mobiscroll.com/demos/f3.png',
-          };
-        case 4:
-          return {
-            name: 'Rose',
-            img: 'https://img.mobiscroll.com/demos/f4.png',
-          };
-        case 5:
-          return {
-            name: 'Matt',
-            img: 'https://img.mobiscroll.com/demos/m1.png',
-          };
-        case 6:
-          return {
-            name: 'Rick',
-            img: 'https://img.mobiscroll.com/demos/m2.png',
-          };
-        case 7:
-          return {
-            name: 'John',
-            img: 'https://img.mobiscroll.com/demos/m3.png',
-          };
-        case 8:
-          return {
-            name: 'Ethan',
-            img: 'https://img.mobiscroll.com/demos/m4.png',
-          };
-      }
-    };
 
     const customScheduleEvent = useCallback((data) => {
     
@@ -987,10 +901,10 @@ const assignTrainerColors = (trainers) => {
               <div className="md-custom-event-details">
                 <div className="md-custom-event-title">{data.original?.coachname && data.original.coachname != "coach"?data.original.coachname: data.original.name}</div>
           
-                {data.original.participants && (
+                {data?.original?.participants && (
        <div className="md-custom-event-time">
     
-        {data.original.participants.map((player, index) => (
+        {data?.original?.participants?.map((player, index) => (
           <div key={index}>{player.name}{","}</div>
         ))}
         </div>
@@ -1004,20 +918,6 @@ const assignTrainerColors = (trainers) => {
       }
     }, []);
   
-    const myBeforeBuffer = useCallback((args) => {
-      var cat = getCategory(args.original.category);
-  
-      return (
-        <div className="md-schedule-buffer md-schedule-before-buffer">
-          <div
-            className=" md-schedule-buffer-background"
-            style={{ background: `repeating-linear-gradient(-45deg,#fcfffc,#fcfffc 10px,${cat.color} 10px,${cat.color} 20px)` }}
-          ></div>
-          <span className="md-buffer-text">Travel time </span>
-          <span className="md-buffer-time">{args.original.bufferBefore} minutes </span>
-        </div>
-      );
-    }, []);
 
   return (
     <div className="  ">
@@ -1132,13 +1032,12 @@ renderScheduleEvent={customScheduleEvent}
       {editModalIsOpen && (
     <>
    
-          {editModalType === 'match' && <MatchDetails removeEvent={onCloseEdit}  filteredEvents={availableEvents} saveEvent={saveEvent} setI={setRender}i={render} courts={courts} setShowModal={setEditModalIsOpen} setReservation={setCurrentEvent} 
-    reservationDetails={{
-      ...currentEvent,
-      startTime: `${currentEvent.start.getHours().toString().padStart(2, '0')}:${currentEvent.start.getMinutes().toString().padStart(2, '0')}`,
-      date:currentEvent.start
-   
-    }} trainees={trainees} trainers={trainers}/>}
+          {editModalType === 'match' && <MatchDetails 
+          removeEvent={onCloseEdit}  filteredEvents={availableEvents} 
+          saveEvent={saveEvent} setI={setRender}i={render} courts={courts}
+           setShowModal={setEditModalIsOpen} 
+           setReservation={setCurrentEvent} 
+    reservationDetails={currentEvent} trainees={trainees} trainers={trainers}/>}
           {editModalType === 'class' &&   <Item
         fiteredEvents={availableEvents}
           trainers={trainers}

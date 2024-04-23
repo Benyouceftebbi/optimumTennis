@@ -2,7 +2,7 @@
 import { db } from '@/app/firebase';
 import AutosuggestComponent from '@/components/UI/Autocomplete';
 import { useAuth } from '@/context/AuthContext';
-import { Timestamp, addDoc, collection, deleteDoc, doc, getDocs, increment, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { Timestamp, addDoc, collection, deleteDoc, doc, getDocs, increment, query, runTransaction, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -10,6 +10,7 @@ import Modal from 'react-modal';
 import Switch from "react-switch";
 
 import { fetchCourtsAndReservations } from '@/context/AuthContext';
+import { json } from 'react-router-dom';
 export function generateRandom13DigitNumber() {
   const randomNumber = Math.floor(Math.random() * 1e13); // Generate a random 13-digit number
   return randomNumber.toString();
@@ -229,6 +230,22 @@ const deepEqual = (obj1, obj2) => {
 
   return true;
 };
+console.log(reservation.courtName);
+useEffect(()=>{
+  const [hours, minutes] = reservation.startTime.split(':').map(Number);
+  const newDate = new Date(reservation.date);
+  newDate.setHours(hours);
+  newDate.setMinutes(minutes);
+  const startTime = new Date(newDate);
+  const endTime = new Date(startTime.getTime() + reservation.duration * 60000);
+  setReservation(prevReservation => ({
+    ...prevReservation,
+    endTime: endTime,
+  
+  }));
+},[reservation.duration,reservation.startTime,reservation.date])
+
+
 const update=async(originalObject, updatedObject)=>{
   if (!deepEqual(originalObject, updatedObject)) {
     // Detected changes, update Firestore with the changed fields
@@ -238,15 +255,54 @@ const update=async(originalObject, updatedObject)=>{
         firestoreUpdates[key] = updatedObject[key];
       }
     }
-  await updateDoc(doc(db,"Courts",reservation.courtName,"Reservations",reservation.matchId),firestoreUpdates)
-  saveEvent(reservation.id,reservation.startTime,reservation.endTime,parseInt(reservation.courtName.match(/\d+/)[0]),"court Booking",'match',"#90EE90",reservation.name,participants)
-setShowModal(false)
+    const [hours, minutes] = reservation.startTime.split(':').map(Number);
+    const newDate = new Date(reservation.date);
+    newDate.setHours(hours);
+    newDate.setMinutes(minutes);
+    const startTime = new Date(newDate);
+if(reservation.courtName !=originalitem.courtName){
+  delete reservation.type;
+  await runTransaction(db, async (transaction) => {
+    // Delete the original reservation document
+    const originalDocRef = doc(db,"Courts", originalitem.courtName, 'Reservations', reservation.matchId);
+    transaction.delete(originalDocRef);
+
+    // Set the updated reservation document
+    const updatedDocRef = doc(db,"Courts", reservation.courtName, 'Reservations', reservation.matchId);
+    const updatedData = {
+        ...reservation,
+        startTime: startTime,
+        endTime: reservation.endTime,
+        date: startTime,
+    };
+    transaction.set(updatedDocRef, updatedData);
+});
+
+}
+else{
+  
+  await updateDoc(doc(db,"Courts",originalitem.courtName,"Reservations",reservation.matchId),{...firestoreUpdates,startTime:startTime,date:startTime})
+
+}
+  saveEvent(reservation.id,
+    startTime,
+    reservation.endTime,
+    parseInt(reservation.courtName.match(/\d+/)[0]),
+  "court Booking",
+  'match',
+  reservation.coachname,
+  reservation.name,
+  participants,
+  reservation.matchType,
+  reservation.duration)
+ setShowModal(false)
     // Update Firestore with the changes in firestoreUpdates object
     // firestore.collection('yourCollection').doc('yourDoc').update(firestoreUpdates);
   } else {
     alert('No changes detected.');
   }
 }
+
 const handleSubmit = async (event) => {
   event.preventDefault();
 
@@ -437,12 +493,17 @@ const cancelMatch = async () => {
     // Handle errors such as permission denied or network issues
   }
 };
-const [participants, setParticipants] = useState(reservationDetails.players?reservationDetails.players:[]);
+const [participants, setParticipants] = useState(reservationDetails.participants?reservationDetails.participants:[]);
 const [newParticipant,setParticipant]=useState({name:'',payment:''})
 const addParticipant = (participant) => {
   if (participants.length < 4) {
-    setParticipants([...participants, participant]);
+    setParticipants((prev)=>([...prev,participant]));
     setParticipant({name:'',payment:''})
+    setReservation(prevReservation => ({
+      ...prevReservation,
+      participants: [...prevReservation.participants,participant],
+    
+    }));
   }
 };
 const handleParticipantChange = (e,) => {
@@ -752,7 +813,25 @@ setAA(prevReservation => ({
                 <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
                 {participant.payment}
                 </td>
-        
+                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+                <button
+                 type="button"
+                className="mb-3 button-blue rounded-md mr-4 "
+                onClick={() => {
+                  setParticipants(prev => prev.filter(parti => parti.name !== participant.name));
+                  setReservation(prevReservation => ({
+                    ...prevReservation,
+                    participants:  prevReservation.participants.filter(parti => parti.name !== participant.name),
+                  
+                  }));
+                
+                                                                   }}
+
+              >
+               remove
+              </button>
+                </td>
+      
             </tr>
               ))}
         </tbody>
