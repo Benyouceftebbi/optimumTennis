@@ -576,6 +576,7 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
           startTime: startTimeString,
           duration: durationInMinutes,
           courtName: court.name,
+          participants:[],
         }));
         setTempEvent(args.event)
    
@@ -601,6 +602,8 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
           startTime: startTimeString,
           duration: durationInMinutes,
           courtName: court.name,
+          participants:[],
+
         }));
         setTempEvent(args.event)
    
