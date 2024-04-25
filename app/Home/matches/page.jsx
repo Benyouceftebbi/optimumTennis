@@ -126,10 +126,7 @@ useEffect(()=>{
 const addReservation = async (reservation) => {
   try {
       // Check if participants length matches the match type
-      const matchType = reservation.matchType.toLowerCase();
-      const participants = reservation.players ? reservation.players.length : 0;
-  
-      if ((matchType === 'double' && participants === 4) || (matchType === 'single' && participants === 2)) {
+
     const discount = reservation.discount ? JSON.parse(reservation.discount) : null;
     const id = generateRandom13DigitNumber();
     const startTime = new Date(reservation.startTime);
@@ -218,9 +215,7 @@ const addReservation = async (reservation) => {
     await updateDoc(doc(db, 'Club/GeneralInformation'), {
       totalRevenue: increment(batchUpdate.price),
     });
-  }else{
-    alert('Invalid participants count for the match type.');
-  }
+ 
   } catch (error) {
     console.error("Error adding reservation:", error);
     // Handle error or show user notification
@@ -525,25 +520,20 @@ const [participants, setParticipants] = useState(reservationDetails.participants
 const [newParticipant,setParticipant]=useState({name:'',payment:''})
 const addParticipant = async(participant) => {
   // Check if participant exists in trainees array
-  const participantExists = trainees.some(trainee => trainee.nameandsurname === participant.name);
 
-  if (participants.length < 4 && participantExists) {
+
+  if (participants.length < 4) {
     setParticipants(prev => [...prev, participant]);
     setParticipant({ name: '', payment: '' });
     setReservation(prevReservation => ({
       ...prevReservation,
       participants: [...prevReservation.participants, participant],
     }));
-  } else if (participants.length < 4 &&  !participantExists ) {
-    console.log('Participant does not exist in trainees array.');
-    setParticipants(prev => [...prev, participant]);
-    setParticipant({ name: '', payment: '' });
-    setReservation(prevReservation => ({
-      ...prevReservation,
-      participants: [...prevReservation.participants, participant],
-    }));
-    const trainee=await addDoc(collection(db,"Trainees"),{nameandsurname:participant.name,Email:null,Documents:[]})
-    await updateDoc(doc(db,"Trainees",trainee.id),{uid:trainee.id})
+    const participantExists = trainees.some(trainee => trainee.nameandsurname === participant.name);
+    if(!participantExists){
+      const trainee=await addDoc(collection(db,"Trainees"),{nameandsurname:participant.name,Email:null,Documents:[]})
+      await updateDoc(doc(db,"Trainees",trainee.id),{uid:trainee.id})
+    }
   } else {
     console.log('Maximum participants limit reached (4 participants).');
     // Handle case where maximum participants limit is reached
@@ -928,8 +918,8 @@ setAA(prevReservation => ({
             </div>
            { !reservation.id? (<button type="submit" 
            
-           onClick={()=>{ if ((reservation.matchType === 'double' && participants === 4) || (reservation.matchType === 'single' && participants === 2)) {
-            handleSubmit()}
+           onClick={(e)=>{ if ((reservation.matchType === 'double' && participants.length === 4) || (reservation.matchType === 'single' && participants.length === 2)) {
+            handleSubmit(e)}
             else{
               alert("number of participants doesnt match the reservation type")
             }}} className="mb-3 px-4 py-2 bg-blue-500 text-white rounded-md">Submit Reservation</button>):      
