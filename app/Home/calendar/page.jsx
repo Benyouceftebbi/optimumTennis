@@ -94,22 +94,25 @@ const tasks = [
   {
     title: 'Private Class',
     color: '#7a5886',
-
-    length: '1 h',
+    start: '08:00',
+    end: '09:30',
+    length: '1.5 h',
     type:'class'
   },
   {
     title: 'Group Class',
     color: '#50789d',
-
-    length: '1 h',
+    start: '08:00',
+    end: '09:30',
+    length: '1.5 h',
     type:'class'
   },
   {
-    title: '1 Hour Court reservation',
+    title: '90 Minutes Court reservation',
     color: '#9da721',
-
-    length: '1 h',
+    start: '08:00',
+    end: '09:30',
+    length: '1.5 h',
     type:'match'
   },
   {
@@ -153,39 +156,6 @@ const DemoApp = () => {
     themeVariant: 'light'
   });
   const [events, setEvents] = useState([]);
-  const [selectedEventType, setSelectedEventType] = useState('all'); // Default value for select element
-  const [noteList, setNoteList] = useState([
-    {
-      id: 1,
-      content: "Contact HubbTennis Academy for partnership opportunities.",
-      category: "Partnership",
-      date: "2024-04-03"
-    },
-    {
-      id: 2,
-      content: "Research top tennis academies in Europe for coaching techniques.",
-      category: "Research",
-      date: "2024-04-03"
-    },
-    {
-      id: 3,
-      content: "Attend a workshop on sports psychology for tennis players.",
-      category: "Training",
-      date: "2024-04-03"
-    },
-    {
-      id: 4,
-      content: "Update website with new training programs for juniors.",
-      category: "Website",
-      date: "2024-04-03"
-    },
-    {
-      id: 5,
-      content: "Schedule a meeting with players to discuss tournament strategy.",
-      category: "Strategy",
-      date: "2024-04-03"
-    }
-  ])
   const courtss = useMemo(
     () => [
     {
@@ -273,51 +243,8 @@ const DemoApp = () => {
     
   }, [courts,classes,tournaments]);
 
-  // Function to handle changes in selected event type
-  const handleEventTypeChange = (event) => {
-      setSelectedEventType(event.target.value); // Update selected event type
-  };
-
-
-
-  const getColor = (type) => {
-    switch (type) {
-      case 'class':
-        return '#FF68A8';
-      case 'tournament':
-        return '#64CFF7';
-      case 'leagues':
-        return '#F7E752';
-      case 'booking':
-        return '#CA7CD8';
-      default:
-        return '#3968CB';
-    }
-  };
-
-
-
-
-  const [notes, setNotes] = useState('');
   const [render,setRender]=useState(false)
-  const handleNoteChange = (event) => {
-    setNotes(event.target.value);
-  };
 
-  const handleSaveNotes = () => {
-    if (notes.trim() !== '') {
-      // Append note to the list
-      setNoteList([...noteList, notes]);
-      // Clear the notes field
-      setNotes('');
-    }
-  };
-  const filteredEvents = selectedEventType === 'all' ? events : events.filter(event => event.type === selectedEventType);
-  const courtsData = [
-    { id: 1, title: 'Court 1' },
-    { id: 2, title: 'Court 2' },
-    // Add more courts as needed
-];
 const [reservation,setReservation]=useState({players:[],reaccurance:0,date:new Date(),courtName:'',duration:60,startTime:"07:00",duration:60,payment:'cash',team1:[],team2:[],name:'',description:'',coachname:'',reaccuring:false})
 
 const [modalIsOpen, setModalIsOpen] = useState(false);
@@ -542,7 +469,7 @@ console.log({  ...event,
   const onEventCreated = useCallback(
     (args) => {
       const startDate = new Date(args.event.start);
-      const endDate = new Date(args.event.end);
+      const endDate = new Date(startDate.getTime() + 90 * 60000); 
       const durationInMilliseconds = endDate.getTime() - startDate.getTime();
       const durationInMinutes = Math.floor(durationInMilliseconds / (1000 * 60));
       const startTimeString = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
@@ -962,6 +889,7 @@ const assignTrainerColors = (trainers) => {
 renderScheduleEvent={customScheduleEvent}
     externalDrop={true}
           height={1000}
+          
     onEventCreateFailed={handleEventCreateFail}
     onEventUpdateFailed={handleEventUpdateFail}
       

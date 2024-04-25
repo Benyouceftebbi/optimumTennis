@@ -89,6 +89,16 @@ const reservation=reservationDetails
 const [aa,setAA]=useState()
 const [originalitem,setOrginal]=useState(reservationDetails)
 const [availableCourts,setAvailableCourts]=useState([courts])
+const [editablePrice, setEditablePrice] = useState('');
+
+
+const handlePriceSave = (e) => {
+  // Validate and update reservation.price with the edited value
+  const parsedPrice = parseInt(e.target.value);
+  if (!isNaN(parsedPrice)) {
+    setReservation(prevReservation => ({ ...prevReservation, price: parsedPrice }));
+  }
+};
 
 const handleInputChange = (e) => {
   setReservation(prevReservation => ({
@@ -115,6 +125,11 @@ useEffect(()=>{
 
 const addReservation = async (reservation) => {
   try {
+      // Check if participants length matches the match type
+      const matchType = reservation.matchType.toLowerCase();
+      const participants = reservation.players ? reservation.players.length : 0;
+  
+      if ((matchType === 'double' && participants === 4) || (matchType === 'single' && participants === 2)) {
     const discount = reservation.discount ? JSON.parse(reservation.discount) : null;
     const id = generateRandom13DigitNumber();
     const startTime = new Date(reservation.startTime);
@@ -203,6 +218,9 @@ const addReservation = async (reservation) => {
     await updateDoc(doc(db, 'Club/GeneralInformation'), {
       totalRevenue: increment(batchUpdate.price),
     });
+  }else{
+    alert('Invalid participants count for the match type.');
+  }
   } catch (error) {
     console.error("Error adding reservation:", error);
     // Handle error or show user notification
@@ -253,62 +271,65 @@ useEffect(()=>{
 },[reservation.duration,reservation.startTime,reservation.date])
 
 
-const update=async(originalObject, updatedObject)=>{
-  if (!deepEqual(originalObject, updatedObject)) {
-    // Detected changes, update Firestore with the changed fields
-    const firestoreUpdates = {};
-    for (const key in updatedObject) {
-      if (!deepEqual(originalObject[key], updatedObject[key])) {
-        firestoreUpdates[key] = updatedObject[key];
+const update = async (originalObject, updatedObject) => {
+  try {
+    // Check if match type and participants count are valid
+    const matchType = updatedObject.matchType.toLowerCase();
+
+
+    if ((matchType === 'double' && participants.length=== 4) || (matchType === 'single' && participants.length === 2)) {
+      if (!deepEqual(originalObject, updatedObject)) {
+        // Detected changes, update Firestore with the changed fields
+        const firestoreUpdates = {};
+        for (const key in updatedObject) {
+          if (!deepEqual(originalObject[key], updatedObject[key])) {
+            firestoreUpdates[key] = updatedObject[key];
+          }
+        }
+        const [hours, minutes] = updatedObject.startTime.split(':').map(Number);
+        const newDate = new Date(updatedObject.date);
+        newDate.setHours(hours);
+        newDate.setMinutes(minutes);
+        const startTime = new Date(newDate);
+
+        if (updatedObject.courtName != originalObject.courtName) {
+          delete updatedObject.type;
+          await runTransaction(db, async (transaction) => {
+            // Delete the original reservation document
+            const originalDocRef = doc(db, "Courts", originalObject.courtName, 'Reservations', updatedObject.matchId);
+            transaction.delete(originalDocRef);
+
+            // Set the updated reservation document
+            const updatedDocRef = doc(db, "Courts", updatedObject.courtName, 'Reservations', updatedObject.matchId);
+            const updatedData = {
+              ...updatedObject,
+              startTime: startTime,
+              endTime: updatedObject.endTime,
+              date: startTime,
+            };
+            transaction.set(updatedDocRef, updatedData);
+          });
+        } else {
+          await updateDoc(doc(db, "Courts", originalObject.courtName, "Reservations", updatedObject.matchId), { ...firestoreUpdates, startTime: startTime, date: startTime })
+        }
+
+        // Save event and update UI
+        saveEvent(updatedObject.id, startTime, updatedObject.endTime, parseInt(updatedObject.courtName.match(/\d+/)[0]), "court Booking", 'match', updatedObject.coachname, updatedObject.name, participants, updatedObject.matchType, updatedObject.duration);
+        setShowModal(false);
+      } else {
+        alert('No changes detected.');
       }
+    } else {
+      alert('Invalid participants count for the match type.');
+      // Handle error or show user notification about invalid match type/participants count
     }
-    const [hours, minutes] = reservation.startTime.split(':').map(Number);
-    const newDate = new Date(reservation.date);
-    newDate.setHours(hours);
-    newDate.setMinutes(minutes);
-    const startTime = new Date(newDate);
-if(reservation.courtName !=originalitem.courtName){
-  delete reservation.type;
-  await runTransaction(db, async (transaction) => {
-    // Delete the original reservation document
-    const originalDocRef = doc(db,"Courts", originalitem.courtName, 'Reservations', reservation.matchId);
-    transaction.delete(originalDocRef);
 
-    // Set the updated reservation document
-    const updatedDocRef = doc(db,"Courts", reservation.courtName, 'Reservations', reservation.matchId);
-    const updatedData = {
-        ...reservation,
-        startTime: startTime,
-        endTime: reservation.endTime,
-        date: startTime,
-    };
-    transaction.set(updatedDocRef, updatedData);
-});
-
-}
-else{
-  
-  await updateDoc(doc(db,"Courts",originalitem.courtName,"Reservations",reservation.matchId),{...firestoreUpdates,startTime:startTime,date:startTime})
-
-}
-  saveEvent(reservation.id,
-    startTime,
-    reservation.endTime,
-    parseInt(reservation.courtName.match(/\d+/)[0]),
-  "court Booking",
-  'match',
-  reservation.coachname,
-  reservation.name,
-  participants,
-  reservation.matchType,
-  reservation.duration)
- setShowModal(false)
-    // Update Firestore with the changes in firestoreUpdates object
-    // firestore.collection('yourCollection').doc('yourDoc').update(firestoreUpdates);
-  } else {
-    alert('No changes detected.');
+  } catch (error) {
+    console.error("Error updating reservation:", error);
+    // Handle error or show user notification
   }
-}
+};
+
 
 const handleSubmit = async (event) => {
   event.preventDefault();
@@ -502,15 +523,30 @@ const cancelMatch = async () => {
 };
 const [participants, setParticipants] = useState(reservationDetails.participants?reservationDetails.participants:[]);
 const [newParticipant,setParticipant]=useState({name:'',payment:''})
-const addParticipant = (participant) => {
-  if (participants.length < 4) {
-    setParticipants((prev)=>([...prev,participant]));
-    setParticipant({name:'',payment:''})
+const addParticipant = async(participant) => {
+  // Check if participant exists in trainees array
+  const participantExists = trainees.some(trainee => trainee.nameandsurname === participant.name);
+
+  if (participants.length < 4 && participantExists) {
+    setParticipants(prev => [...prev, participant]);
+    setParticipant({ name: '', payment: '' });
     setReservation(prevReservation => ({
       ...prevReservation,
-      participants: [...prevReservation.participants,participant],
-    
+      participants: [...prevReservation.participants, participant],
     }));
+  } else if (participants.length < 4 &&  !participantExists ) {
+    console.log('Participant does not exist in trainees array.');
+    setParticipants(prev => [...prev, participant]);
+    setParticipant({ name: '', payment: '' });
+    setReservation(prevReservation => ({
+      ...prevReservation,
+      participants: [...prevReservation.participants, participant],
+    }));
+    const trainee=await addDoc(collection(db,"Trainees"),{nameandsurname:participant.name,Email:null,Documents:[]})
+    await updateDoc(doc(db,"Trainees",trainee.id),{uid:trainee.id})
+  } else {
+    console.log('Maximum participants limit reached (4 participants).');
+    // Handle case where maximum participants limit is reached
   }
 };
 const handleParticipantChange = (e,) => {
@@ -644,26 +680,7 @@ function generateTimeArrayFromDate() {
     ))}
   </select>
   </div>
-  <div className="flex flex-col">
-            <strong>Reservation Type</strong>
-            <select
-    name="matchType"
-    value={reservation.matchType}
-    onChange={handleInputChange}
-    className="rounded-lg"
-    required 
-  >
-      <option value="">
-        select Type
-      </option>
-      <option  value="single">
-      Single
-      </option>
-      <option  value="double">
-       Double
-      </option>
-  </select>
-  </div>
+
 <div className="flex flex-col">
             <strong>Select Coach</strong>
 <AutosuggestComponent trainers={filteredTrainers} setReservation={setReservation} reservation={reservation} name={reservation.coachname} field={'coachname'}/>
@@ -742,12 +759,32 @@ setAA(prevReservation => ({
             <input
         className="rounded-lg"
         type="text"
-        name="Price"
+        name="price"
         value={reservation.price}
-        readOnly
+      onChange={handlePriceSave}
 
       />
 
+  </div>
+  <div className="flex flex-col">
+            <strong>Reservation Type</strong>
+            <select
+    name="matchType"
+    value={reservation.matchType}
+    onChange={handleInputChange}
+    className="rounded-lg"
+    required 
+  >
+      <option value="">
+        select Type
+      </option>
+      <option  value="single">
+      Single
+      </option>
+{!trainees.find(trainee => trainee.nameandsurname === reservation.name)?.membership &&(  <option  value="double">
+       Double
+      </option>)}
+  </select>
   </div>
   <div className="flex flex-col">
               <strong>Description</strong>
@@ -891,7 +928,11 @@ setAA(prevReservation => ({
             </div>
            { !reservation.id? (<button type="submit" 
            
-           onClick={handleSubmit} className="mb-3 px-4 py-2 bg-blue-500 text-white rounded-md">Submit Reservation</button>):      
+           onClick={()=>{ if ((reservation.matchType === 'double' && participants === 4) || (reservation.matchType === 'single' && participants === 2)) {
+            handleSubmit()}
+            else{
+              alert("number of participants doesnt match the reservation type")
+            }}} className="mb-3 px-4 py-2 bg-blue-500 text-white rounded-md">Submit Reservation</button>):      
                 ( <button type="submit" onClick={()=>update(originalitem,reservation)} 
                  className="mb-3 px-4 py-2 bg-blue-500 text-white rounded-md">Edit Reservation</button>)
           }

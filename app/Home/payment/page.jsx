@@ -19,7 +19,7 @@ const Card = ({ title, data, subtitle, icon }) => {
     <div className="bg-white shadow-md rounded-xl p-6 w-72">
       
       <div className="flex items-center flex-col justify-between mb-4">
-      {icon && <div className="bg-gray-200 p-4  rounded-xl self-start mb-2">{icon}</div>}
+      {icon && <div className="bg-gray-200 p-4  rounded-xl self-start mb-2 ">{icon}</div>}
  
       </div>
       <div className="text-gray-700">
