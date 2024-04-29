@@ -76,10 +76,17 @@ export const findAvailableCourts = (selectedDate, startTimeString, duration, cou
 };
 
 export const MatchDetails=({reservationDetails,setI,i,courts,setShowModal,setReservation,trainers,trainees,setCourts,removeEvent,saveEvent,filteredEvents})=>{
-  const filterTrainers =(filteredEvents) => {
-      const relevantCoachNames = new Set(filteredEvents.map((event) => event.coachname));
-      return trainers.filter((trainer) => !relevantCoachNames.has(trainer.nameandsurname));
-    }
+  const filterTrainers = (filteredEvents) => {
+    // Extract unique relevant coach names from filtered events
+    const relevantCoachNames = new Set(filteredEvents
+      .filter(event => event.type === 'match') // Filter events of type 'class'
+      .map((event) => event.coachname)
+    );
+  
+    // Filter trainers array to remove trainers with relevant coach names
+    return trainers.filter((trainer) => !relevantCoachNames.has(trainer.nameandsurname));
+  };
+
   
  const filteredTrainers = filterTrainers(filteredEvents);
 const data=useAuth()
@@ -159,8 +166,9 @@ const addReservation = async (reservation) => {
     "court Booking",
     'match',
     reservation.coachname,
-    reservation.name,
+ 
     participants,
+    reservation.name,
     reservation.matchType,
     reservation.duration)
 
@@ -309,7 +317,7 @@ const update = async (originalObject, updatedObject) => {
         }
 
         // Save event and update UI
-        saveEvent(updatedObject.id, startTime, updatedObject.endTime, parseInt(updatedObject.courtName.match(/\d+/)[0]), "court Booking", 'match', updatedObject.coachname, updatedObject.name, participants, updatedObject.matchType, updatedObject.duration);
+        saveEvent(updatedObject.id, startTime, updatedObject.endTime, parseInt(updatedObject.courtName.match(/\d+/)[0]), "court Booking", 'match', updatedObject.coachname, participants,updatedObject.name,  updatedObject.matchType, updatedObject.duration);
         setShowModal(false);
       } else {
         alert('No changes detected.');
@@ -448,8 +456,21 @@ const handleConfirmRefund = async () => {
 };
 useEffect(() => {
   const priceBeforeDiscount =priceMap[reservation.duration]
-  const discountRate = reservation.discount?parseInt(JSON.parse(reservation.discount).rate , 10) : 0; // Assuming a 20% discount
+  let discountRate = 0; // Default discount rate
 
+  if (reservation.discount) {
+    if (typeof reservation.discount === 'string') {
+      try {
+        const discountObj = JSON.parse(reservation.discount);
+        discountRate = parseInt(discountObj?.rate, 10) || 0;
+      } catch (error) {
+        console.error('Error parsing discount JSON:', error);
+        discountRate=0
+      }
+    } else {
+      console.error('Invalid discount format:', reservation.discount);
+    }
+  }
   // Calculate the discount amount
   const discountAmount = (priceBeforeDiscount * discountRate) / 100;
 
@@ -572,23 +593,30 @@ function generateTimeArrayFromDate() {
 
   return timeArray;
 }
-
+useEffect(()=>{
+  const durationTime= reservation.matchType==="single"?60 :90;
+  setReservation(prevReservation => ({
+    ...prevReservation,
+    duration: durationTime,
+    Price: priceMap[durationTime],
+  }));
+  setAA(prevReservation => ({
+    ...prevReservation,
+    duration: durationTime,
+  })); 
+},[reservation.matchType])
+const filteredTrainees = React.useMemo(() => {
+  const traineeIdsToRemove = participants.map(participant => participant.name);
+  return trainees.filter(trainee => !traineeIdsToRemove.includes(trainee.nameandsurname));
+}, [trainees, participants]);
   return    (
-    <div className="fixed inset-0 h-full flex bg-gray-600 bg-opacity-50 justify-end items-center overflow-scroll mb-10 z-50" style={{ height: '100%' }}>
-      <button onClick={()=>{handleClose();removeEvent()}} className="absolute top-0 right-0 m-3 text-gray-500 hover:text-gray-700 focus:outline-none">
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
 
-      <div className="w-4/12 h-full bg-white border rounded-t flex flex-col justify-start items-start">
+ 
 
-    <div className='flex'>
-        <h2 className="text-xl font-bold ml-4 mt-4 mb-6">Match Details</h2>
-     
+   
 
-    </div>
-    {/* Form inputs */}
+
+
     <div  className="p-6 mt-4 border h-full rounded-lg ml-4 mr-4 mb-8 overflow-y-auto" style={{ width: 'calc(100% - 24px)' }}>
           <div className="ml-4 grid grid-cols-2 gap-4">
           <div className="flex flex-col">
@@ -671,39 +699,6 @@ function generateTimeArrayFromDate() {
   </select>
   </div>
 
-<div className="flex flex-col">
-            <strong>Select Coach</strong>
-<AutosuggestComponent trainers={filteredTrainers} setReservation={setReservation} reservation={reservation} name={reservation.coachname} field={'coachname'}/>
-  </div>
-  {reservation.coachname !== "coach" && reservation.coachname !== "" && ( <div className="flex flex-col ">
-            
- <div className="flex flex-row justify-between">
-
-            <strong>Coach payout (per match)</strong>
-            <Switch onChange={()=>{ setReservation(prevReservation => ({
-  ...prevReservation,
-  coachPaid: !prevReservation.coachPaid,
-  
-}));
-setAA(prevReservation => ({
-  ...prevReservation,
-  coachPaid: !reservation.coachPaid,
-}));}} checked={reservation.coachPaid} />
-     </div>
-   {reservation.coachPaid &&   (<input
-        className="rounded-lg"
-        type="number"
-        name="coachPayout"
-        
-        value={reservation.coachPayout}
-        onChange={handleInputChange}
-        
-      />)}
-  </div>)}
-<div className="flex flex-col">
-            <strong>Select Consumer</strong>
-<AutosuggestComponent trainers={trainees} setReservation={setReservation} reservation={reservation} name={reservation.name} field={'name'}/>
-  </div>
 
 
 <div className="flex flex-col">
@@ -756,8 +751,29 @@ setAA(prevReservation => ({
       />
 
   </div>
+  
+
   <div className="flex flex-col">
-            <strong>Reservation Type</strong>
+              <strong>Description</strong>
+              <input
+          className="rounded-lg"
+          type="text"
+          name="description"
+          value={reservation.description}
+          onChange={handleInputChange}
+          required 
+        />
+  
+    </div>
+
+
+<div className="flex flex-col">
+            <strong>Select Consumer</strong>
+<AutosuggestComponent trainers={trainees} setReservation={setReservation} reservation={reservation} name={reservation.name} field={'name'}/>
+  </div>
+
+<div className="flex flex-col">
+            <strong>match Type</strong>
             <select
     name="matchType"
     value={reservation.matchType}
@@ -776,47 +792,71 @@ setAA(prevReservation => ({
       </option>)}
   </select>
   </div>
-  <div className="flex flex-col">
-              <strong>Description</strong>
-              <input
-          className="rounded-lg"
-          type="text"
-          name="description"
-          value={reservation.description}
-          onChange={handleInputChange}
-          required 
-        />
   
-    </div>
-    <div className="flex flex-col ">
+
+
+
+  <div className="flex flex-col">
+            <strong>Select Coach</strong>
+<AutosuggestComponent trainers={filteredTrainers} setReservation={setReservation} reservation={reservation} name={reservation.coachname} field={'coachname'}/>
+  </div>
+  {reservation.coachname !== "coach" && reservation.coachname !== "" && ( <div className="flex flex-col ">
             
-              <div className="flex flex-row justify-between">
+ <div className="flex flex-row justify-between">
 
-              <strong>Reaccuring</strong>
-              <Switch onChange={()=>{ setReservation(prevReservation => ({
-    ...prevReservation,
-    reaccuring: !prevReservation.reaccuring,
-    
-  }));
-  setAA(prevReservation => ({
-    ...prevReservation,
-    reaccuring: !reservation.reaccuring,
-  }));}} checked={reservation.reaccuring} />
-       </div>
-     {reservation.reaccuring &&   (<input
-          className="rounded-lg"
-          type="number"
-          name="reaccurance"
-          placeholder='Number of weeks'
-          value={reservation.reaccurance}
-          onChange={handleInputChange}
-          
-        />)}
-    </div>
+            <strong>Coach payout (per match)</strong>
+            <Switch onChange={()=>{ setReservation(prevReservation => ({
+  ...prevReservation,
+  coachPaid: !prevReservation.coachPaid,
+  
+}));
+setAA(prevReservation => ({
+  ...prevReservation,
+  coachPaid: !reservation.coachPaid,
+}));}} checked={reservation.coachPaid} />
+     </div>
+   {reservation.coachPaid &&   (<input
+        className="rounded-lg"
+        type="number"
+        name="coachPayout"
+        
+        value={reservation.coachPayout}
+        onChange={handleInputChange}
+        
+      />)}
+  </div>)}
+  <div className="flex flex-col ">
+            
+            <div className="flex flex-row justify-between">
 
-
+            <strong>Reaccuring</strong>
+            <Switch onChange={()=>{ setReservation(prevReservation => ({
+  ...prevReservation,
+  reaccuring: !prevReservation.reaccuring,
+  
+}));
+setAA(prevReservation => ({
+  ...prevReservation,
+  reaccuring: !reservation.reaccuring,
+}));}} checked={reservation.reaccuring} />
+     </div>
+   {reservation.reaccuring &&   (<input
+        className="rounded-lg"
+        type="number"
+        name="reaccurance"
+        placeholder='Number of weeks'
+        value={reservation.reaccurance}
+        onChange={handleInputChange}
+        
+      />)}
+  </div>
 
           </div>
+   
+
+
+
+
           <div className="flex flex-col my-5">
           <strong>Add Participants </strong>
           
@@ -875,7 +915,7 @@ setAA(prevReservation => ({
 
                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
                <AutosuggestComponent
-                trainers={trainees}
+                trainers={filteredTrainees}
                 setReservation={setParticipant}
                 reservation={newParticipant}
                 name={newParticipant.name}
@@ -978,8 +1018,7 @@ setAA(prevReservation => ({
       </Modal> */}
         </div>
 
-      </div>
-    </div>
+
   )
 }
 const ManageMatchesPage = () => {

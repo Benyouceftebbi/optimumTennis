@@ -56,6 +56,7 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers,tr
 
       const trainerColors = assignTrainerColors(trainers);
       const traineeColors = assignTraineeColors(trainees);
+
     const eventsPromises = classes.map(async classData => {
         const attendanceQuery = query(collection(db, `Classes/${classData.id}/attendance`));
         const attendanceSnapshot = await getDocs(attendanceQuery);
@@ -68,6 +69,7 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers,tr
         const trainerName = trainers.find((trainer) => JSON.stringify(trainer.Ref) === JSON.stringify(classData.TrainerRef)).nameandsurname
 
         return attendanceData.map(attendance => ({
+          ...classData,
             title: classData.className,
             start: new Date(attendance.date.toDate()), // Assuming start is a Firestore timestamp
             end:new Date(new Date(attendance.date.toDate()).getTime() + 2 * 60 * 60 * 1000) , // Assuming end is a Firestore timestamp
@@ -78,7 +80,7 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers,tr
             color: trainerColors[trainerName] ,
             participants:classData.participants,
             coachname:trainerName,
-            ...classData,
+      
             
         }));
     });

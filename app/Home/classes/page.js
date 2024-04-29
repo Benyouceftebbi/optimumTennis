@@ -33,6 +33,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useAuth } from "@/context/AuthContext";
 import { formatTimestampToDate,formatCreatedAt } from "./dateFormat";
+import AutosuggestComponent from "@/components/UI/Autocomplete";
 const getStatusColorClass = (status) => {
   switch (status) {
     case "active":
@@ -339,13 +340,13 @@ const ParticipantsHorizontalScroll = ({
       classDetails.classTime[newPlayerDetails.Category].price *
       newPlayerDetails.Duration;
     const discountRate = newPlayerDetails.discount != null ? parseInt(newPlayerDetails.discount.rate, 10) : 0; // Assuming a 20% discount
-  
+
     // Calculate the discount amount
     const discountAmount = (priceBeforeDiscount * discountRate) / 100;
-  
+
     // Apply the discount to get the final price
     let finalPrice = priceBeforeDiscount - discountAmount;
-  
+
     // Check if the user is a member
     if (newPlayerDetails.member) {
       // Find the membership with the same ID as membership.id
@@ -364,7 +365,7 @@ const ParticipantsHorizontalScroll = ({
         }
       }
     }
-  
+
     setNewPlayerDetails((prev) => ({
       ...prev,
       Price: finalPrice,
@@ -385,13 +386,13 @@ const ParticipantsHorizontalScroll = ({
       const currentDate = new Date();
       let total = 0;
       const paymentReceivedPromises = [];
-    
+
       newParticipants.forEach((participant) => {
         const paymentReceivedRef = collection(
           db,
           "Club/GeneralInformation/PaymentReceived"
         ); // Generate a new document ID
-    
+
         const paymentReceivedPromise = addDoc(paymentReceivedRef, {
           uid: participant.uid,
           date: currentDate,
@@ -402,11 +403,11 @@ const ParticipantsHorizontalScroll = ({
           price: participant.Price,
           description: null,
         });
-    
+
         paymentReceivedPromises.push(paymentReceivedPromise);
-    
+
         total += participant.Price;
-    
+
         if (participant.discount) {
           const discountId = participant.discount.id;
           paymentReceivedPromises.push(
@@ -418,16 +419,16 @@ const ParticipantsHorizontalScroll = ({
           console.log("Discount object is missing or incomplete.");
         }
       });
-    
+
       await Promise.all(paymentReceivedPromises);
-    
+
       await updateDoc(doc(db, "Club", "GeneralInformation"), {
         totalRevenue: increment(total),
       });
     }
-    
 
-    
+
+
     if (classDetails.id) {
       await updateDoc(doc(db, "Classes", classDetails.id), {
       participants: selectedPlayers.map((player) => ({
@@ -1180,8 +1181,21 @@ const UpcomingClasses = ({ classes, setI, i, canceled, classId }) => {
   );
 };
 
-export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,setShowModal}) => {
+export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,setShowModal,fiteredEvents}) => {
+  const filterTrainers = (fiteredEvents) => {
+    // Extract unique relevant coach names from filtered events
+    const relevantCoachNames = new Set(fiteredEvents
+      .filter(event => event.type === 'class') // Filter events of type 'class'
+      .map((event) => event.coachname)
+    );
+
+    // Filter trainers array to remove trainers with relevant coach names
+    return trainers.filter((trainer) => !relevantCoachNames.has(trainer.nameandsurname));
+  };
+
+  const filteredTrainers=filterTrainers(fiteredEvents)
   const [classDetails, setClassDetails] = useState(item);
+  console.log("item",item);
   const [showDetails, setShowDetails] = useState(false);
   const courts = [
     "Court1",
@@ -1290,15 +1304,15 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
     delete updatedClassDetails.canceled;
 
     // Extract UIDs from participants and add them to participantsUid
-    const participantsUid = classDetails.participants.map(
-      (participant) => participant.uid
-    );
-    updatedClassDetails.participantsuid = participantsUid;
+    // const participantsUid = classDetails.participants.map(
+    //   (participant) => participant.uid
+    // );
+    // updatedClassDetails.participantsuid = participantsUid;
     if (previous !== classDetails) {
       try {
         await updateDoc(
           doc(db, "Classes", classDetails.id),
-          updatedClassDetails
+         {...updatedClassDetails,trainers:selectedCoaches}
         );
         alert("Changes Submitted.");
         setIsSubmitting(false);
@@ -1312,7 +1326,72 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
       alert("No changes to submit.");
     }
   };
+  const [participants, setParticipants] = useState(classDetails.participants?classDetails.participants:[]);
+  const [newParticipant,setParticipant]=useState({name:'',payment:''})
 
+  const addParticipant = async(participant) => {
+    // Check if participant exists in trainees array
+
+
+    if (participants.length < 4) {
+      setParticipants(prev => [...prev, participant]);
+      setParticipant({ name: '', payment: '' });
+      setClassDetails(prevReservation => ({
+        ...prevReservation,
+        participants: [...prevReservation.participants, participant],
+      }));
+      const participantExists = trainees.some(trainee => trainee.nameandsurname === participant.name);
+      if(!participantExists){
+        const trainee=await addDoc(collection(db,"Trainees"),{nameandsurname:participant.name,Email:null,Documents:[]})
+        await updateDoc(doc(db,"Trainees",trainee.id),{uid:trainee.id})
+      }
+    } else {
+      console.log('Maximum participants limit reached (4 participants).');
+      // Handle case where maximum participants limit is reached
+    }
+  };
+  const handleParticipantChange = (e) => {
+    const { name, value } = e.target;
+    setParticipant((prevParticipant) =>
+  ({...prevParticipant,[name]:value})
+      )
+  };
+  const filteredTrainees = React.useMemo(() => {
+    const traineeIdsToRemove = participants.map(participant => participant.name);
+    return trainees.filter(trainee => !traineeIdsToRemove.includes(trainee.nameandsurname));
+  }, [trainees, participants]);
+  const [selectedCoaches, setSelectedCoaches] = useState(item.trainers);
+
+// Function to handle coach selection
+const handleCoachSelection = (e) => {
+  const selectedCoachName = e.target.value;
+  const isChecked = e.target.checked;
+
+  if (isChecked && selectedCoaches.length < 3) {
+    // Add coach to selected coaches if less than 3 are already selected
+    setSelectedCoaches((prevSelected) => [
+      ...prevSelected,
+      { name: selectedCoachName },
+    ]);
+  } else if (!isChecked) {
+    // Remove coach from selected coaches
+    setSelectedCoaches((prevSelected) =>
+      prevSelected.filter((coach) => coach.name !== selectedCoachName)
+    );
+  }
+};
+const listStyle = {
+  maxHeight: '200px', // Set a max height for scrolling
+  overflowY: 'auto', // Enable vertical scrolling
+};
+const [showCoachList, setShowCoachList] = useState(false);
+const timeIntervals = [
+  '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
+  '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'
+];
   return (
     // <div
     //   className="bg-gray-100 p-1 rounded-md cursor-pointer hover:shadow-lg relative font-semibold text-gray-600"
@@ -1517,8 +1596,8 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
                           value={classDetails.trainerId}
                           onChange={handleInputChange}
                         >
-                          <option value={classDetails.trainer.nameandsurname}>
-                            {classDetails.trainer.nameandsurname}
+                          <option value={classDetails.TrainerRef}>
+                            {classDetails.coachname}
                           </option>
                           {trainers.map((trainer, index) => (
                             <option key={index} value={trainer.Ref}>
@@ -1528,7 +1607,39 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
                         </select>
                       </div>
                     </div>
-
+                    
+                  <div className="flex flex-col">
+                      <strong className="text-gray-600 font-semibold">
+                        Trainers
+                      </strong>
+    <input
+      type="button"
+      className="rounded-lg border py-2 border-black relative"
+      value={showCoachList ? 'Hide Coaches' : 'Show Coaches'}
+      onClick={() => setShowCoachList(!showCoachList)}
+    />
+    {showCoachList && (
+      <div style={listStyle} className="z-10 bg-white w-full ">
+           {filteredTrainers.map((trainer) => (
+          <div key={trainer.id}>
+            <input
+              type="checkbox"
+              id={trainer.nameandsurname}
+              value={trainer.nameandsurname}
+              checked={selectedCoaches.some((coach) => coach.name === trainer.nameandsurname)}
+              onChange={handleCoachSelection}
+              disabled={
+                selectedCoaches.length >= 3 &&
+                !selectedCoaches.some((coach) => coach.name === trainer.nameandsurname)
+              }
+            />
+            <label htmlFor={trainer.nameandsurname}>{trainer.nameandsurname}</label>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+{/*
                     <div className="flex flex-col">
                       <strong className="text-gray-600 font-semibold">
                         Features
@@ -1546,7 +1657,7 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
                           })
                         } // Convert string back to array on change
                       />
-                    </div>
+                    </div> */}
                     <div className="flex flex-col">
                       <strong className="text-gray-600 font-semibold">
                         Registration deadline
@@ -1555,7 +1666,7 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
 <div          className="rounded-lg rounded-xl px-3 mt-2 w-90 ">
                         {/* <DateTimePicker
                         className="border-none"
-                      
+
                         calendarClassName="border-none"
                           value={
                             classDetails.RegistrationDeadLine.seconds
@@ -1572,7 +1683,7 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
                           calendarIcon={null} // Remove default calendar icon
                           clearIcon={false}
                         /> */}
-                     </div> 
+                     </div>
                     </div>
 
                     {classDetails.classTime.map((cls, index) => (
@@ -1791,23 +1902,116 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
                     </div>
                   </div>
                 </div>
-
                 <div
-                  className="p-6 mt-4  border rounded-lg ml-4 mr-4 mb-8"
-                  style={{ width: "calc(100% - 24px)" }}
-                >
-                  <div>
-                    <h3 className="text-lg font-semibold  ml-4 mb-2">
-                      Participants
-                    </h3>
-                    <ParticipantsHorizontalScroll
-                      classDetails={classDetails}
-                      participants={classDetails.participants}
-                      trainees={trainees}
-                      setClassDetails={setClassDetails}
-                    />
-                  </div>
-                </div>
+                className="p-6 mt-4 border rounded-lg ml-4 mr-4 mb-8 relative"
+                style={{ width: "calc(100% - 24px)" }}
+              >
+                     <div className="flex flex-col my-5">
+          <strong>Add Participants </strong>
+
+
+<div class="relative overflow-x-auto my-5">
+<table className="w-full divide-y divide-gray-200 mb-5">
+          <thead className="bg-gray-50">
+            <tr>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"   >
+                    Player Name
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"   >
+                    Payment method
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"   >
+                    Action
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+        {participants.map((participant, index) => (
+            <tr  key={index}>
+
+
+               <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+             {participant.name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+                {participant.payment}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+                <button
+                 type="button"
+                className="mb-3 button-blue rounded-md mr-4 "
+                onClick={() => {
+                  setParticipants(prev => prev.filter(parti => parti.name !== participant.name));
+                 setClassDetails(prevReservation => ({
+                    ...prevReservation,
+                    participants:  prevReservation.participants.filter(parti => parti.name !== participant.name),
+
+                  }));
+
+                                                                   }}
+
+              >
+               remove
+              </button>
+                </td>
+
+            </tr>
+              ))}
+        </tbody>
+        {participants.length < 4 &&(
+        <tr >
+
+
+               <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+               <AutosuggestComponent
+                trainers={filteredTrainees}
+                setReservation={setParticipant}
+                reservation={newParticipant}
+                name={newParticipant.name}
+                field={'name'}
+              />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+                <select
+    name="payment"
+    value={newParticipant.payment}
+    onChange={handleParticipantChange}
+    className="px-3 py-2 border rounded-md w-full sm:w-auto w-full"
+    style={{width:'150px'}}
+    required
+  >
+
+    <option value="full">
+        Full
+      </option>
+      <option  value="split">
+        Split
+      </option>
+  </select>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+                <button
+                 type="button"
+                className="mb-3 button-blue rounded-md mr-4 "
+                onClick={() => addParticipant(newParticipant)}
+
+              >
+                Add Participant
+              </button>
+              </td>
+            </tr>
+            )}
+            </table>
+</div>
+
+            </div>
+                {/* <ParticipantsHorizontalScroll
+                  classDetails={classDetails}
+                  participants={classDetails.participants}
+                  trainees={trainees}
+                  setClassDetails={setClassDetails}
+                /> */}
+              </div>
 
                 <div className="bg-white w-full">
                   <button
@@ -1838,16 +2042,24 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
             )}
           </div>
         </div>
-      
+
     // </div>
   );
 };
 
 export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, setClassDetails,saveEvent,setShowModal,setEvents,fiteredEvents}) => {
-  const filterTrainers =(filteredEvents) => {
-    const relevantCoachNames = new Set(filteredEvents.map((event) => event.coachname));
+  console.log(fiteredEvents);
+  const filterTrainers = (filteredEvents) => {
+    // Extract unique relevant coach names from filtered events
+    const relevantCoachNames = new Set(filteredEvents
+      .filter(event => event.type === 'class') // Filter events of type 'class'
+      .map((event) => event.coachname)
+    );
+
+    // Filter trainers array to remove trainers with relevant coach names
     return trainers.filter((trainer) => !relevantCoachNames.has(trainer.nameandsurname));
-  }
+  };
+
   const filteredTrainers=filterTrainers(fiteredEvents)
   const [selectedDateTime, setSelectedDateTime] = useState([new Date()]);
   const [selectedDurations, setSelectedDurations] = useState([60]);
@@ -1930,7 +2142,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
       alert("You must leave one class Time.");
     }
   };
-  async function createAttendanceForClass(docRef, title) {
+  async function createAttendanceForClass(docRef,title) {
     try {
       const dayMap = {
         Sunday: 0,
@@ -1943,7 +2155,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
       };
       classDetails.classTime.forEach(async (classTime) => {
         const numberWeeks = parseInt(classDetails.Duration, 10);
-      
+
         for (let i = 0; i < numberWeeks; i++) {
           let startDate = new Date(); // Use the current date as the base
           const currentDay = startDate.getDay(); // Get the current day of the week
@@ -1952,15 +2164,16 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
           startDate.setDate(startDate.getDate() + daysUntilTargetDay + i * 7); // Set the start date for the current week
           startDate.setHours(classTime.startTime.split(":")[0]); // Set end time hours
           startDate.setMinutes(classTime.startTime.split(":")[1]);
-      
+
           let endDate = new Date(startDate);
           endDate.setHours(classTime.endTime.split(":")[0]); // Set end time hours
           endDate.setMinutes(classTime.endTime.split(":")[1]); // Set end time minutes
-      
+
           const id = generateRandomUid(13);
           const courtId = parseInt(classTime.Court.match(/\d+/)[0]);
-     
-          await saveEvent(id, startDate, endDate, courtId, title, "class", "#FFC0CB",classDetails.coachname,classDetails.participants)
+
+      console.log("old part",classDetails.participants);
+          await saveEvent(id, startDate, endDate, courtId, title, "class",classDetails.coachname,classDetails.participants)
           const docData = {
             Participants: classDetails.participantsuid,
             date: startDate,
@@ -1990,10 +2203,10 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
               type: "class",
             }
           );
-       
+
         }
       });
-  
+
       console.log("Attendance data created successfully.");
     } catch (error) {
       // Log any errors
@@ -2017,18 +2230,19 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
       delete updatedClassDetails.trainer;
       delete updatedClassDetails.history;
       delete updatedClassDetails.canceled;
-      delete updatedClassDetails.participants;
-      delete updatedClassDetails.participantsuid
+      delete updatedClassDetails.RegistrationDeadLine;
+      delete updatedClassDetails.color;
+      //delete updatedClassDetails.participantsuid
       console.log(updatedClassDetails);
       // Create class document in Firestore
       const docRef = await addDoc(
         collection(db, "Classes"),
-        updatedClassDetails
+        {...updatedClassDetails,trainers:selectedCoaches}
       );
 
-      await createAttendanceForClass(docRef.id,classDetails.className); // Create attendance records
+      await createAttendanceForClass(docRef.id, classDetails.className); // Create attendance records
 
-     await handlePaymentDetails(classDetails.participants, docRef.id);
+     //await handlePaymentDetails(classDetails.participants, docRef.id);
       handleClose();
      setI((prev) => [...prev, classDetails]);
       setShowModal(false)
@@ -2044,13 +2258,13 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
       const currentDate = new Date();
       let total = 0;
       const paymentReceivedPromises = [];
-    
+
       participants.forEach((participant) => {
         const paymentReceivedRef = collection(
           db,
           "Club/GeneralInformation/PaymentReceived"
         ); // Generate a new document ID
-    
+
         const paymentReceivedPromise = addDoc(paymentReceivedRef, {
           uid: participant.uid,
           date: currentDate,
@@ -2061,11 +2275,11 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
           price: participant.Price,
           description: null,
         });
-    
+
         paymentReceivedPromises.push(paymentReceivedPromise);
-    
+
         total += participant.Price;
-    
+
         if (participant.discount) {
           const discountId = participant.discount.id;
           paymentReceivedPromises.push(
@@ -2077,14 +2291,14 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
           console.log("Discount object is missing or incomplete.");
         }
       });
-    
+
       await Promise.all(paymentReceivedPromises);
-    
+
       await updateDoc(doc(db, "Club", "GeneralInformation"), {
         totalRevenue: increment(total),
       });
-    
-    
+
+
 
       await updateDoc(doc(db, "Classes", classId), {
         participants: classDetails.participants.map((player) => ({
@@ -2099,98 +2313,84 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
         })),
         participantsuid: classDetails.participants.map((p) => p.uid),
       });
-    
+
   };
 
   const handleClose = () => {
     setShowForm(false);
   };
-  // Default duration is 60 minutes
+  const [participants, setParticipants] = useState(classDetails.participants?classDetails.participants:[]);
+  const [newParticipant,setParticipant]=useState({name:'',payment:''})
 
-  // Default duration is 60 minutes
+  const addParticipant = async(participant) => {
+    // Check if participant exists in trainees array
 
-  const handleDateTimeChange = (date, index) => {
-    const newDateTime = [...selectedDateTime];
-    newDateTime[index] = date;
-    setSelectedDateTime(newDateTime);
-  };
 
-  const handleDurationChange = (e, index) => {
-    const duration = parseInt(e.target.value, 10);
-    const newDurations = [...selectedDurations];
-    newDurations[index] = duration;
-    setSelectedDurations(newDurations);
-  };
-
-  // const toggleForm = () => {
-  //   setShowForm(!showForm);
-  // };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setClassDetails({
-          ...classDetails,
-          image: e.target.files[0]
-            ? URL.createObjectURL(e.target.files[0])
-            : null,
-        });
-      };
-      reader.readAsDataURL(file);
+    if (participants.length < 4) {
+      setParticipants(prev => [...prev, participant]);
+      setParticipant({ name: '', payment: '' });
+      setClassDetails(prevReservation => ({
+        ...prevReservation,
+        participants: [...prevReservation.participants, participant],
+      }));
+      const participantExists = trainees.some(trainee => trainee.nameandsurname === participant.name);
+      if(!participantExists){
+        const trainee=await addDoc(collection(db,"Trainees"),{nameandsurname:participant.name,Email:null,Documents:[]})
+        await updateDoc(doc(db,"Trainees",trainee.id),{uid:trainee.id})
+      }
+    } else {
+      console.log('Maximum participants limit reached (4 participants).');
+      // Handle case where maximum participants limit is reached
     }
   };
+  const handleParticipantChange = (e,) => {
+    const { name, value } = e.target;
+    setParticipant((prevParticipant) =>
+  ({...prevParticipant,[name]:value})
+      )
+  };
+  const filteredTrainees = React.useMemo(() => {
+    const traineeIdsToRemove = participants.map(participant => participant.name);
+    return trainees.filter(trainee => !traineeIdsToRemove.includes(trainee.nameandsurname));
+  }, [trainees, participants]);
+  const [selectedCoaches, setSelectedCoaches] = useState([]);
 
+// Function to handle coach selection
+const handleCoachSelection = (e) => {
+  const selectedCoachName = e.target.value;
+  const isChecked = e.target.checked;
+
+  if (isChecked && selectedCoaches.length < 3) {
+    // Add coach to selected coaches if less than 3 are already selected
+    setSelectedCoaches((prevSelected) => [
+      ...prevSelected,
+      { name: selectedCoachName },
+    ]);
+  } else if (!isChecked) {
+    // Remove coach from selected coaches
+    setSelectedCoaches((prevSelected) =>
+      prevSelected.filter((coach) => coach.name !== selectedCoachName)
+    );
+  }
+};
+const listStyle = {
+  maxHeight: '200px', // Set a max height for scrolling
+  overflowY: 'auto', // Enable vertical scrolling
+};
+const [showCoachList, setShowCoachList] = useState(false);
+const timeIntervals = [
+  '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
+  '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'
+];
   return (
-    <>
-      {/* {!showForm ? (
-        <div
-          className="bg-gray-200 p-3 rounded-md cursor-pointer hover:shadow-lg flex items-center justify-center"
-          style={{
-            width: "300px",
-            height: "300px",
-            margin: "10px",
-            padding: "20px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            textAlign: "center",
-          }}
-          onClick={toggleForm}
-        >
-          <span className="text-5xl">+</span>
-        </div>
-      ) : ( */}
-        <div
-          className="fixed inset-0 flex justify-end items-center h-full overflow-auto bg-gray-600 bg-opacity-50"
-          style={{ height: "calc(100% )", zIndex: "9999" }}
-        >
-          <div className="w-3/6 h-full bg-white border rounded-t flex flex-col justify-start items-start">
-            <button
-              onClick={toggleForm}
-              className="absolute top-0 right-0 m-3 text-gray-500 hover:text-gray-700 focus:outline-none"
-            >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
 
-            <div className="flex">
-              <h2 className="text-xl font-semibold  ml-4 mt-4 mb-6">
-                Class Details
-              </h2>
-              <div className="ml-72" />
-            </div>
+
+      <div className=" flex flex-col  h-[850px]" style={{}}>
+
+
 
             <form className="bg-white w-full" onSubmit={handleSubmit}>
               <h1 className="text-lg font-semibold  ml-4 mb-2">
@@ -2202,7 +2402,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                 style={{ width: "calc(100% - 24px)" }}
               >
                 <div className="ml-4 grid grid-cols-3 gap-4">
-                  <div>
+                <div className="flex flex-col">
                     <strong className="text-gray-600 font-semibold">
                       Name
                     </strong>
@@ -2241,7 +2441,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                       required
                       onChange={handleInputChange}
                     >
-                    
+
                       <option value="junior">Junoir</option>
                       <option value="adult">Adult</option>
                     </select>
@@ -2264,7 +2464,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                   <div>
                     <div className="flex flex-col">
                       <strong className="text-gray-600 font-semibold">
-                        Trainer
+                        Main Trainer
                       </strong>
                       <select
                         className="rounded-lg"
@@ -2296,6 +2496,38 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                     </div>
                   </div>
 
+
+                  <div className="flex flex-col">
+                      <strong className="text-gray-600 font-semibold">
+                        Trainers
+                      </strong>
+    <input
+      type="button"
+      className="rounded-lg border py-2 border-black relative"
+      value={showCoachList ? 'Hide Coaches' : 'Show Coaches'}
+      onClick={() => setShowCoachList(!showCoachList)}
+    />
+    {showCoachList && (
+      <div style={listStyle} className="z-10 bg-white w-full ">
+           {filteredTrainers.map((trainer) => (
+          <div key={trainer.id}>
+            <input
+              type="checkbox"
+              id={trainer.nameandsurname}
+              value={trainer.nameandsurname}
+              checked={selectedCoaches.some((coach) => coach.name === trainer.nameandsurname)}
+              onChange={handleCoachSelection}
+              disabled={
+                selectedCoaches.length >= 3 &&
+                !selectedCoaches.some((coach) => coach.name === trainer.nameandsurname)
+              }
+            />
+            <label htmlFor={trainer.nameandsurname}>{trainer.nameandsurname}</label>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
                   <div className="flex flex-col">
                     <strong className="text-gray-600 font-semibold">
                       Features
@@ -2314,11 +2546,11 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                       } // Convert string back to array on change
                     />
                   </div>
-                  <div className="flex flex-col">
+                  {/* <div className="flex flex-col">
                     <strong className="text-gray-600 font-semibold">
                       Registration deadline
                     </strong>
-          
+
                       <DateTimePicker
                         value={ classDetails.RegistrationDeadLine
                           ? classDetails.RegistrationDeadLine
@@ -2333,9 +2565,9 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                         calendarIcon={null} // Remove default calendar icon
                         required
                       />
-                  
-                  </div>
 
+                  </div> */}
+{/*
                   <div className="flex flex-col">
                     <strong className="text-gray-600 font-semibold">
                       Upload Class Image
@@ -2356,7 +2588,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                         required
                       />
                     </label>
-                  </div>
+                  </div> */}
                   {classDetails.classTime.map((cls, index) => (
                     <div key={index}>
                       <strong className="text-gray-600 font-semibold">
@@ -2396,6 +2628,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                 style={{ width: "calc(100% - 24px)" }}
               >
                 <button
+                type="button"
                   className="absolute top-2 right-2 bg-blue-500 text-white px-4 py-2 rounded"
                   onClick={handleAddTime}
                 >
@@ -2436,36 +2669,38 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                             Start Time
                           </strong>{" "}
                           <br />
-                          <input
-                            className="rounded-lg w-24"
-                            type="text"
-                            name="startTime"
-                            value={date.startTime}
-                            onChange={(e) =>
-                              handleTimeChange(
-                                e.target.value,
-                                "startTime",
-                                index
-                              )
-                            }
-                            required
-                          />
+                          <select
+          className="rounded-lg w-24"
+          name="startTime"
+          value={date.startTime}
+          onChange={(e) => handleTimeChange(e.target.value, 'startTime', index)}
+          required
+        >
+          {timeIntervals.map((time, idx) => (
+            <option key={idx} value={time}>
+              {time}
+            </option>
+          ))}
+        </select>
                         </div>
                         <div className="mr-2">
                           <strong className="text-gray-600 font-semibold">
                             End Time
                           </strong>{" "}
                           <br />
-                          <input
-                            className="rounded-lg w-24"
-                            type="text"
-                            name="endTime"
-                            value={date.endTime}
-                            onChange={(e) =>
-                              handleTimeChange(e.target.value, "endTime", index)
-                            }
-                            required
-                          />
+                          <select
+          className="rounded-lg w-24"
+          name="endTime"
+          value={date.endTime}
+          onChange={(e) => handleTimeChange(e.target.value, 'endTime', index)}
+          required
+        >
+          {timeIntervals.map((time, idx) => (
+            <option key={idx} value={time}>
+              {time}
+            </option>
+          ))}
+        </select>
                         </div>
                         <div className="flex flex-col">
                           <strong className="text-gray-600 font-semibold">
@@ -2570,16 +2805,111 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
                 className="p-6 mt-4 border rounded-lg ml-4 mr-4 mb-8 relative"
                 style={{ width: "calc(100% - 24px)" }}
               >
-                <h3 className="text-lg font-semibold  ml-4 mb-2">
-                  Participants
-                </h3>
+                     <div className="flex flex-col my-5">
+          <strong>Add Participants </strong>
 
-                <ParticipantsHorizontalScroll
+
+<div class="relative overflow-x-auto my-5">
+<table className="w-full divide-y divide-gray-200 mb-5">
+          <thead className="bg-gray-50">
+            <tr>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"   >
+                    Player Name
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"   >
+                    Payment method
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"   >
+                    Action
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+        {participants.map((participant, index) => (
+            <tr  key={index}>
+
+
+               <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+             {participant.name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+                {participant.payment}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+                <button
+                 type="button"
+                className="mb-3 button-blue rounded-md mr-4 "
+                onClick={() => {
+                  setParticipants(prev => prev.filter(parti => parti.name !== participant.name));
+                 setClassDetails(prevReservation => ({
+                    ...prevReservation,
+                    participants:  prevReservation.participants.filter(parti => parti.name !== participant.name),
+
+                  }));
+
+                                                                   }}
+
+              >
+               remove
+              </button>
+                </td>
+
+            </tr>
+              ))}
+        </tbody>
+        {participants.length < 4 &&(
+        <tr >
+
+
+               <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+               <AutosuggestComponent
+                trainers={filteredTrainees}
+                setReservation={setParticipant}
+                reservation={newParticipant}
+                name={newParticipant.name}
+                field={'name'}
+              />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+                <select
+    name="payment"
+    value={newParticipant.payment}
+    onChange={handleParticipantChange}
+    className="px-3 py-2 border rounded-md w-full sm:w-auto w-full"
+    style={{width:'150px'}}
+    required
+  >
+
+    <option value="full">
+        Full
+      </option>
+      <option  value="split">
+        Split
+      </option>
+  </select>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap" style={{ color: '#737373' }}>
+                <button
+                 type="button"
+                className="mb-3 button-blue rounded-md mr-4 "
+                onClick={() => addParticipant(newParticipant)}
+
+              >
+                Add Participant
+              </button>
+              </td>
+            </tr>
+            )}
+            </table>
+</div>
+
+            </div>
+                {/* <ParticipantsHorizontalScroll
                   classDetails={classDetails}
                   participants={classDetails.participants}
                   trainees={trainees}
                   setClassDetails={setClassDetails}
-                />
+                /> */}
               </div>
 
               <div className="bg-white w-full">
@@ -2592,9 +2922,9 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
               </div>
             </form>
           </div>
-        </div>
-      {/* )} */}
-    </>
+
+
+
   );
 };
 
@@ -2613,8 +2943,8 @@ const Dashboard = () => {
   };
 const [newModal,setNewModal]=useState(false)
 const onClose = ()=>{
-  
- 
+
+
 
 
 setNewModal(false);
@@ -2659,13 +2989,13 @@ setNewModal(false);
             ...trainee,
           }))}
           setI={setClasses}
-         
+
           toggleForm={()=>onClose()}
           classDetails={classDetails}
           setClassDetails={setClassDetails}
-          
-          setShowModal={setNewModal} 
-         
+
+          setShowModal={setNewModal}
+
         />}
       </div>
     </div>

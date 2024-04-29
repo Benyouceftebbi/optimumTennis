@@ -356,11 +356,16 @@ const dayName = dayNames[startDate.getDay()];
 // Format startTime and endTime
 const startTimeString = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-
-setCurrentEvent((prev)=>({
-        ...prev,
+console.log({  ...event,
+  date: startDate,
+  endDate :endDate,
+  startTime: startTimeString,
+  duration: durationInMinutes,
+  courtName: court.name,});
+setCurrentEvent({
+        ...event,
           classTime: [{ day: dayName, startTime: startTimeString, endTime: endTimeString,Court:court.name,}],type:'class',color:"#FFC0CB",
-      }))
+      })
    
      }
      else if(args.event.type === 'match') {
@@ -474,8 +479,16 @@ console.log({  ...event,
       const durationInMinutes = Math.floor(durationInMilliseconds / (1000 * 60));
       const startTimeString = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
       const court = courtss.find(obj => obj.id === args.event.resource);
-      const filteredEvents = filterEvents(startDate, endDate, args.event.classType || "junior", args.event.resource);
-     
+      const filteredEvents = filterEvents(startDate, endDate, args.event.resource);
+      console.log("events",filteredEvents);
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayName = dayNames[startDate.getDay()];
+      
+      // Format startTime and endTime
+      const startTimeStringclass = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+      
+   
       setAvailableEvents(filteredEvents)
       if (args.event.type === 'class') {
         
@@ -532,6 +545,10 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
           participants:[],
 
         }));
+        setClass((prev)=>({
+          ...prev,
+            classTime: [{ day: dayName, startTime: startTimeStringclass, endTime: endTimeString,Court:court.name,}],type:'class',color:"#FFC0CB",
+        }))
         setTempEvent(args.event)
    
         openModal('match');
@@ -542,7 +559,7 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
 
 
 
-const filterEvents = (startDate, endDate, type, resource) => {
+const filterEvents = (startDate, endDate,resource) => {
   return events.filter((event) => {
     const eventStart = event.start;
     const eventEnd = event.end;
@@ -558,7 +575,7 @@ const filterEvents = (startDate, endDate, type, resource) => {
     const overlaps = overlapsStart || overlapsEnd || overlapsWithin;
     const isSameEvent = newEventStart === eventStart && newEventEnd === eventEnd;
     
-    return (overlaps && !isSameEvent) && event.classType === type && event.resource === resource;
+    return (overlaps && !isSameEvent) && event.resource === resource;
   });
 };
 
@@ -698,10 +715,10 @@ const assignTrainerColors = (trainers) => {
       
         return traineeColors;
       };              
-  const saveEvent = (id, startTime, endTime, resource, title, description, coachname, name, participants,matchType,duration) => {
+  const saveEvent = (id, startTime, endTime, resource, title, description, coachname,participants, name, matchType,duration) => {
     const colors=assignTrainerColors(trainers)
     const traineecolor=assignTraineeColors(trainees)
-   
+   console.log("dwqdqwdqd",participants);
     const newEvent = {
         id: id,
         title: title,
@@ -714,10 +731,10 @@ const assignTrainerColors = (trainers) => {
         resource: resource,
         type: description,
         participants: participants,
-        ...(name && { name }), // Include name only if it exists
-        ...(coachname && { coachname }), 
-        ...(matchType && { matchType}), 
-        ...(duration && { duration}), 
+        ...(name != null && { name }), // Include name only if it's not null or undefined
+        ...(coachname != null && { coachname }), 
+        ...(matchType != null && { matchType }), 
+        ...(duration != null && { duration }), 
         [`${description}Id`]:id,
         courtName:`Court${resource}`,
         date:startTime
@@ -963,12 +980,35 @@ renderScheduleEvent={customScheduleEvent}
       {editModalIsOpen && (
     <>
    
-          {editModalType === 'match' && <MatchDetails 
+          {editModalType === 'match' && 
+          
+          
+          
+          (<div className="fixed inset-0 h-full flex bg-gray-600 bg-opacity-50 justify-end items-center overflow-scroll z-50 pt-20" style={{ height: '100%' }}>
+<button onClick={()=>{onCloseEdit()}} className="absolute top-0 right-0 m-3 text-gray-500 hover:text-gray-700 focus:outline-none">
+  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+  </button>
+  <div className="w-4/6 pt-10 bg-white border rounded-t flex flex-col justify-start items-start">
+  <div className='flex'>
+        <h2 className="text-xl font-bold ml-4 mt-4 mb-6">Reservation Details</h2>
+     
+
+    </div>
+    <div className="flex flex-col justify-start items-start w-full self-center">
+
+      </div>
+          <MatchDetails 
           removeEvent={onCloseEdit}  filteredEvents={availableEvents} 
           saveEvent={saveEvent} setI={setRender}i={render} courts={courts}
            setShowModal={setEditModalIsOpen} 
            setReservation={setCurrentEvent} 
-    reservationDetails={currentEvent} trainees={trainees} trainers={trainers}/>}
+    reservationDetails={currentEvent} trainees={trainees} trainers={trainers}/>
+    
+    </div>
+        </div>)
+    }
           {editModalType === 'class' &&   <Item
         fiteredEvents={availableEvents}
           trainers={trainers}
@@ -981,16 +1021,48 @@ renderScheduleEvent={customScheduleEvent}
           toggleForm={()=>onCloseEdit()}
           saveEvent={saveEvent}
           setShowModal={setEditModalIsOpen} 
-
           item={currentEvent}
-        />}
+        />
+ 
+        }
           </>
       )}
-  {modalIsOpen && (
-    <>
+ 
+
+</div>
+{modalIsOpen && (
+
    
-          {modalType === 'match' && <MatchDetails removeEvent={onClose}  filteredEvents={availableEvents} saveEvent={saveEvent} setI={setRender}i={render} courts={courts} setShowModal={setModalIsOpen} setReservation={setReservation} reservationDetails={reservation} trainees={trainees} trainers={trainers}/>}
-          {modalType === 'class' &&   <NewItem
+      
+<div className="fixed inset-0 h-full flex bg-gray-600 bg-opacity-50 justify-end items-center overflow-scroll z-50 pt-20" style={{ height: '100%' }}>
+<button onClick={()=>{onClose()}} className="absolute top-0 right-0 m-3 text-gray-500 hover:text-gray-700 focus:outline-none">
+  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+  </button>
+  <div className="w-4/6 pt-10 bg-white border rounded-t flex flex-col justify-start items-start">
+  <div className='flex'>
+        <h2 className="text-xl font-bold ml-4 mt-4 mb-6">Reservation Details</h2>
+     
+
+    </div>
+    <div className="flex flex-col justify-start items-start w-full self-center">
+        
+        <div className="flex justify-center mb-6">
+        <button onClick={() => setModalType('match')} className={`px-4 py-2 font-semibold text-xl rounded-lg focus:outline-none ${modalType === 'match' ? 'text-indigo-600 hover:bg-indigo-100' : 'text-gray-600 hover:bg-gray-100'}`}>match</button>
+          <button onClick={() => setModalType('class')} className={`px-4 py-2 font-semibold text-xl  rounded-lg focus:outline-none ${modalType === 'class' ? 'text-indigo-600 hover:bg-indigo-100' : 'text-gray-600 hover:bg-gray-100'}`}>class</button>
+         
+      </div>
+
+      </div>
+  {modalType === 'match' && 
+(
+     <MatchDetails removeEvent={onClose}  filteredEvents={availableEvents} saveEvent={saveEvent} setI={setRender}i={render} courts={courts} setShowModal={setModalIsOpen} setReservation={setReservation} reservationDetails={reservation} trainees={trainees} trainers={trainers}/> 
+  )}
+{modalType === 'class' &&
+
+
+   <NewItem
         fiteredEvents={availableEvents}
           trainers={trainers}
           trainees={trainees.map((trainee) => ({
@@ -1005,7 +1077,8 @@ renderScheduleEvent={customScheduleEvent}
           saveEvent={saveEvent}
           setShowModal={setModalIsOpen} 
           setEvents={setEvents}
-        />}
+        />
+         }
          {modalType === 'tournament' &&   <NewItemTournament 
         courts={courts}
         toggleForm={()=>onClose()}
@@ -1013,12 +1086,12 @@ renderScheduleEvent={customScheduleEvent}
         saveEvent={saveEvent}
         setShowModal={setModalIsOpen} 
 
-        />}
-          </>
-      )}
-      </div>
-
-      {/* </div> */}
+        />
+   
+        }
+</div>
+</div>
+)}
     </div>
   );
 };
