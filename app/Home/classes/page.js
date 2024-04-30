@@ -1302,7 +1302,7 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
     delete updatedClassDetails.trainer;
     delete updatedClassDetails.history;
     delete updatedClassDetails.canceled;
-
+    delete updatedClassDetails.allDay;
     // Extract UIDs from participants and add them to participantsUid
     // const participantsUid = classDetails.participants.map(
     //   (participant) => participant.uid
