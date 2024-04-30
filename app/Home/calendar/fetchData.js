@@ -80,6 +80,7 @@ export  const fetchFirestoreData = async (classes,courts,tournaments,trainers,tr
             color: trainerColors[trainerName] ,
             participants:classData.participants,
             coachname:trainerName,
+            id:attendance.attendanceId
       
             
         }));

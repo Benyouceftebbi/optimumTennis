@@ -1311,12 +1311,78 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
     if (previous !== classDetails) {
       try {
         await updateDoc(
-          doc(db, "Classes", classDetails.id),
+          doc(db, "Classes", classDetails.classId),
          {...updatedClassDetails,trainers:selectedCoaches}
         );
+        const dayMap = {
+          Sunday: 0,
+          Monday: 1,
+          Tuesday: 2,
+          Wednesday: 3,
+          Thursday: 4,
+          Friday: 5,
+          Saturday: 6,
+        };
+        const ar=[]
+        classDetails.classTime.forEach(async (classTime) => {
+          const numberWeeks = parseInt(classDetails.Duration, 10);
+  
+          for (let i = 0; i < numberWeeks; i++) {
+            let startDate = new Date(); // Use the current date as the base
+            const currentDay = startDate.getDay(); // Get the current day of the week
+            const targetDay = dayMap[classTime.day]; // Get the numeric value for the target day
+            const daysUntilTargetDay = (targetDay - currentDay + 7) % 7; // Calculate days until target day
+            startDate.setDate(startDate.getDate() + daysUntilTargetDay + i * 7); // Set the start date for the current week
+            startDate.setHours(classTime.startTime.split(":")[0]); // Set end time hours
+            startDate.setMinutes(classTime.startTime.split(":")[1]);
+  
+            let endDate = new Date(startDate);
+            endDate.setHours(classTime.endTime.split(":")[0]); // Set end time hours
+            endDate.setMinutes(classTime.endTime.split(":")[1]); // Set end time minutes
+  
+            const id = generateRandomUid(13);
+            const courtId = parseInt(classTime.Court.match(/\d+/)[0]);
+            const docData = {
+              Participants: classDetails.participantsuid,
+              date: startDate,
+              end: endDate,
+              court: classTime.Court,
+            };
+            await updateDoc(
+              doc(db, "Classes", item.classId, "attendance",item.attendanceId),
+              docData
+            );
+        console.log("old part",item);
+           ar.push( await saveEvent(classDetails.attendanceId,classDetails.classId, startDate, endDate, courtId, classDetails.className, "class",classDetails.coachname,classDetails.participants))
+      
+            const durationMs = endDate.getTime() - startDate.getTime();
+            // Write to Firestore
+
+  
+            await setDoc(
+              doc(
+                db,
+                "Courts",
+                classTime.Court,
+                "Reservations",
+                classDetails.attendanceId
+              ),
+              {
+                startTime: startDate,
+                endTime: endDate,
+                date: startDate,
+                duration: Math.floor(durationMs / (1000 * 60)),
+                type: "class",
+              }
+            );
+  
+          }
+        });
+        await Promise.all(ar)
         alert("Changes Submitted.");
         setIsSubmitting(false);
         setI(!i);
+        setShowModal(false)
       } catch (error) {
         console.error("Error updating document:", error);
         setIsSubmitting(false);
@@ -2153,7 +2219,8 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
         Friday: 5,
         Saturday: 6,
       };
-      classDetails.classTime.forEach(async (classTime) => {
+         const reservationPromises = [];
+ for (const classTime of classDetails.classTime) {
         const numberWeeks = parseInt(classDetails.Duration, 10);
 
         for (let i = 0; i < numberWeeks; i++) {
@@ -2172,8 +2239,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
           const id = generateRandomUid(13);
           const courtId = parseInt(classTime.Court.match(/\d+/)[0]);
 
-      console.log("old part",classDetails.participants);
-          await saveEvent(id, startDate, endDate, courtId, title, "class",classDetails.coachname,classDetails.participants)
+         
           const docData = {
             Participants: classDetails.participantsuid,
             date: startDate,
@@ -2186,7 +2252,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
             collection(db, "Classes", docRef, "attendance"),
             docData
           );
-
+          reservationPromises.push(await saveEvent(attendanceref.id,docRef, startDate, endDate, courtId, title, "class",classDetails.coachname,classDetails.participants))
           await setDoc(
             doc(
               db,
@@ -2205,8 +2271,8 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
           );
 
         }
-      });
-
+      };
+    await Promise.all(reservationPromises);
       console.log("Attendance data created successfully.");
     } catch (error) {
       // Log any errors

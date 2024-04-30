@@ -80,7 +80,7 @@ export const  AppProvider = ({ children }) => {
             const attendancePromises = attendanceSnapshot.docs.map(async (attendanceDoc) => {
               const attendanceData = attendanceDoc.data();
               const participants = attendanceData.Participants;
-              
+              console.log("eqweqlolol");
               // Merging participant details
               const mergedParticipants = participants.map((participant) => {
                 if (Array.isArray(classData.participants)) {

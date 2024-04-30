@@ -715,7 +715,7 @@ const assignTrainerColors = (trainers) => {
       
         return traineeColors;
       };              
-  const saveEvent = (id, startTime, endTime, resource, title, description, coachname,participants, name, matchType,duration) => {
+  const saveEvent = (id,docId, startTime, endTime, resource, title, description, coachname,participants, name, matchType,duration) => {
     const colors=assignTrainerColors(trainers)
     const traineecolor=assignTraineeColors(trainees)
    console.log("dwqdqwdqd",participants);
@@ -735,7 +735,7 @@ const assignTrainerColors = (trainers) => {
         ...(coachname != null && { coachname }), 
         ...(matchType != null && { matchType }), 
         ...(duration != null && { duration }), 
-        [`${description}Id`]:id,
+        [`${description}Id`]:docId,
         courtName:`Court${resource}`,
         date:startTime
      
