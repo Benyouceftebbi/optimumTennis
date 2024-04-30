@@ -1326,7 +1326,7 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
         const ar=[]
         classDetails.classTime.forEach(async (classTime) => {
           const numberWeeks = parseInt(classDetails.Duration, 10);
-  
+        
           for (let i = 0; i < numberWeeks; i++) {
             let startDate = new Date(); // Use the current date as the base
             const currentDay = startDate.getDay(); // Get the current day of the week
@@ -1335,11 +1335,11 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
             startDate.setDate(startDate.getDate() + daysUntilTargetDay + i * 7); // Set the start date for the current week
             startDate.setHours(classTime.startTime.split(":")[0]); // Set end time hours
             startDate.setMinutes(classTime.startTime.split(":")[1]);
-  
+        
             let endDate = new Date(startDate);
             endDate.setHours(classTime.endTime.split(":")[0]); // Set end time hours
             endDate.setMinutes(classTime.endTime.split(":")[1]); // Set end time minutes
-  
+            let ref;
             const id = generateRandomUid(13);
             const courtId = parseInt(classTime.Court.match(/\d+/)[0]);
             const docData = {
@@ -1348,34 +1348,66 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
               end: endDate,
               court: classTime.Court,
             };
-            await updateDoc(
-              doc(db, "Classes", item.classId, "attendance",item.attendanceId),
-              docData
-            );
-        console.log("old part",item);
-           ar.push( await saveEvent(classDetails.attendanceId,classDetails.classId, startDate, endDate, courtId, classDetails.className, "class",classDetails.coachname,classDetails.participants))
-      
             const durationMs = endDate.getTime() - startDate.getTime();
+            // Check if classTime is in item.classTime
+            const classTimeExists = item.classTime.some((itemClassTime) => {
+              return itemClassTime.startTime === classTime.startTime && itemClassTime.endTime === classTime.endTime && itemClassTime.day === classTime.day && itemClassTime.Court === classTime.Court;
+            });
+        
+            if (classTimeExists) {
+              await setDoc(
+                doc(db, "Classes", item.classId, "attendance", item.attendanceId),
+                docData
+              );
+              ar.push(await saveEvent(classDetails.attendanceId, classDetails.classId, startDate, endDate, courtId, classDetails.className, "class", classDetails.coachname, classDetails.participants));
+              await setDoc(
+                doc(
+                  db,
+                  "Courts",
+                  classTime.Court,
+                  "Reservations",
+                  classDetails.attendanceId
+                ),
+                {
+                  startTime: startDate,
+                  endTime: endDate,
+                  date: startDate,
+                  duration: Math.floor(durationMs / (1000 * 60)),
+                  type: "class",
+                }
+              );
+            } else {
+              console.log("Qweqweamama");
+              const refdoc=await addDoc(
+                collection(db, "Classes", item.classId, "attendance"),
+                docData
+              );
+              ref=refdoc.id
+              ar.push(await saveEvent(id, classDetails.classId, startDate, endDate, courtId, classDetails.className, "class", classDetails.coachname, classDetails.participants));
+              await setDoc(
+                doc(
+                  db,
+                  "Courts",
+                  classTime.Court,
+                  "Reservations",
+                  refdoc.id
+                ),
+                {
+                  startTime: startDate,
+                  endTime: endDate,
+                  date: startDate,
+                  duration: Math.floor(durationMs / (1000 * 60)),
+                  type: "class",
+                }
+              );
+            }
+        
+            console.log("old part", item);
+        
+          
             // Write to Firestore
+        
 
-  
-            await setDoc(
-              doc(
-                db,
-                "Courts",
-                classTime.Court,
-                "Reservations",
-                classDetails.attendanceId
-              ),
-              {
-                startTime: startDate,
-                endTime: endDate,
-                date: startDate,
-                duration: Math.floor(durationMs / (1000 * 60)),
-                type: "class",
-              }
-            );
-  
           }
         });
         await Promise.all(ar)
@@ -1827,43 +1859,43 @@ const timeIntervals = [
                             </select>
                           </div>
                           <div className="mr-2">
-                            <strong className="text-gray-600 font-semibold">
-                              Start Time
-                            </strong>{" "}
-                            <br />
-                            <input
-                              className="rounded-lg w-24"
-                              type="text"
-                              name="startTime"
-                              value={date.startTime}
-                              onChange={(e) =>
-                                handleTimeChange(
-                                  e.target.value,
-                                  "startTime",
-                                  index
-                                )
-                              }
-                            />
-                          </div>
-                          <div className="mr-2">
-                            <strong className="text-gray-600 font-semibold">
-                              End Time
-                            </strong>{" "}
-                            <br />
-                            <input
-                              className="rounded-lg w-24"
-                              type="text"
-                              name="endTime"
-                              value={date.endTime}
-                              onChange={(e) =>
-                                handleTimeChange(
-                                  e.target.value,
-                                  "endTime",
-                                  index
-                                )
-                              }
-                            />
-                          </div>
+                          <strong className="text-gray-600 font-semibold">
+                            Start Time
+                          </strong>{" "}
+                          <br />
+                          <select
+          className="rounded-lg w-24"
+          name="startTime"
+          value={date.startTime}
+          onChange={(e) => handleTimeChange(e.target.value, 'startTime', index)}
+          required
+        >
+          {timeIntervals.map((time, idx) => (
+            <option key={idx} value={time}>
+              {time}
+            </option>
+          ))}
+        </select>
+                        </div>
+                        <div className="mr-2">
+                          <strong className="text-gray-600 font-semibold">
+                            End Time
+                          </strong>{" "}
+                          <br />
+                          <select
+          className="rounded-lg w-24"
+          name="endTime"
+          value={date.endTime}
+          onChange={(e) => handleTimeChange(e.target.value, 'endTime', index)}
+          required
+        >
+          {timeIntervals.map((time, idx) => (
+            <option key={idx} value={time}>
+              {time}
+            </option>
+          ))}
+        </select>
+                        </div>
                           <div className="flex flex-col">
                             <strong className="text-gray-600 font-semibold">
                               Court
