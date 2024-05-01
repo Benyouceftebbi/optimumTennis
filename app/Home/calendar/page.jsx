@@ -543,6 +543,7 @@ const endTimeString = endDate.toLocaleTimeString('en-US', { hour: '2-digit', min
           duration: durationInMinutes,
           courtName: court.name,
           participants:[],
+          matchType:'single'
 
         }));
         setClass((prev)=>({
