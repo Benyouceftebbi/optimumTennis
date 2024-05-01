@@ -159,7 +159,8 @@ const addReservation = async (reservation) => {
 
     // Prepare batched writes
     await setDoc(courtRef, batchUpdate);
-    saveEvent(courtRef.id,
+
+    saveEvent(courtRef.id,courtRef.id,
       startTime,
       reservation.endTime,
       parseInt(reservation.courtName.match(/\d+/)[0]),

@@ -2240,7 +2240,15 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
       alert("You must leave one class Time.");
     }
   };
-  async function createAttendanceForClass(docRef,title) {
+  function simulateFirestoreOperation(docData) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        console.log("Simulated Firestore operation:", docData);
+        resolve(); // Resolve the promise after simulation
+      }, 1000); // Simulate 1 second delay
+    });
+  }
+  async function createAttendanceForClass(docRef, title) {
     try {
       const dayMap = {
         Sunday: 0,
@@ -2251,27 +2259,27 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
         Friday: 5,
         Saturday: 6,
       };
-         const reservationPromises = [];
- for (const classTime of classDetails.classTime) {
+  
+      const reservationPromises = [];
+      for (const classTime of classDetails.classTime) {
         const numberWeeks = parseInt(classDetails.Duration, 10);
-
+  
         for (let i = 0; i < numberWeeks; i++) {
           let startDate = new Date(); // Use the current date as the base
           const currentDay = startDate.getDay(); // Get the current day of the week
           const targetDay = dayMap[classTime.day]; // Get the numeric value for the target day
           const daysUntilTargetDay = (targetDay - currentDay + 7) % 7; // Calculate days until target day
           startDate.setDate(startDate.getDate() + daysUntilTargetDay + i * 7); // Set the start date for the current week
-          startDate.setHours(classTime.startTime.split(":")[0]); // Set end time hours
-          startDate.setMinutes(classTime.startTime.split(":")[1]);
-
+          startDate.setHours(classTime.startTime.split(":")[0]); // Set start time hours
+          startDate.setMinutes(classTime.startTime.split(":")[1]); // Set start time minutes
+  
           let endDate = new Date(startDate);
           endDate.setHours(classTime.endTime.split(":")[0]); // Set end time hours
           endDate.setMinutes(classTime.endTime.split(":")[1]); // Set end time minutes
-
+  
           const id = generateRandomUid(13);
           const courtId = parseInt(classTime.Court.match(/\d+/)[0]);
-
-         
+  
           const docData = {
             Participants: classDetails.participantsuid,
             date: startDate,
@@ -2279,12 +2287,27 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
             court: classTime.Court,
           };
           const durationMs = endDate.getTime() - startDate.getTime();
+          
           // Write to Firestore
           const attendanceref = await addDoc(
             collection(db, "Classes", docRef, "attendance"),
             docData
           );
-          reservationPromises.push(await saveEvent(attendanceref.id,docRef, startDate, endDate, courtId, title, "class",classDetails.coachname,classDetails.participants))
+          console.log("Start createAttendanceForClass");
+          console.log("classDetails:", classDetails); 
+          const saveEventPromise = saveEvent(
+            attendanceref.id,
+            docRef,
+            startDate,
+            endDate,
+            courtId,
+            title,
+            "class",
+            classDetails.coachname,
+            classDetails.participants
+          );
+          reservationPromises.push(simulateFirestoreOperation(docData));
+  
           await setDoc(
             doc(
               db,
@@ -2301,17 +2324,17 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
               type: "class",
             }
           );
-
         }
-      };
-    await Promise.all(reservationPromises);
+      }
+  
+      // Wait for all reservation promises to resolve
+      await Promise.all(reservationPromises);
       console.log("Attendance data created successfully.");
     } catch (error) {
       // Log any errors
       console.error("Error creating attendance data:", error);
     }
   }
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -2341,10 +2364,10 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
       await createAttendanceForClass(docRef.id, classDetails.className); // Create attendance records
 
      //await handlePaymentDetails(classDetails.participants, docRef.id);
-      handleClose();
+     // handleClose();
      setI((prev) => [...prev, classDetails]);
-      setShowModal(false)
-     alert("Class Created Successfully");
+      //setShowModal(false)
+     //alert("Class Created Successfully");
     } catch (error) {
       console.error("Error adding document:", error);
       alert("An error occurred. Please try again.");
