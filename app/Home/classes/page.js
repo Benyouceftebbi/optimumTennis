@@ -2347,6 +2347,9 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
      setI((prev) => [...prev, classDetails]);
       setShowModal(false)
      alert("Class Created Successfully");
+     setClassDetails({  classTime: [{ day: "Monday", startTime: "13:00", endTime: "14:00" }],
+     participants: [],
+     participantsuid: [],})
     } catch (error) {
       console.error("Error adding document:", error);
       alert("An error occurred. Please try again.");
