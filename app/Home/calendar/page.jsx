@@ -364,7 +364,7 @@ console.log({  ...event,
   courtName: court.name,});
 setCurrentEvent({
         ...event,
-          classTime: [{ day: dayName, startTime: startTimeString, endTime: endTimeString,Court:court.name,}],type:'class',color:"#FFC0CB",
+          classTime:event.classTime,type:'class',color:"#FFC0CB",
       })
    
      }

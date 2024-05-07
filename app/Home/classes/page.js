@@ -1426,7 +1426,7 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
   };
   const [participants, setParticipants] = useState(classDetails.participants?classDetails.participants:[]);
   const [newParticipant,setParticipant]=useState({name:'',payment:''})
-
+const {setTrainees}=useAuth()
   const addParticipant = async(participant) => {
     // Check if participant exists in trainees array
 
@@ -1442,6 +1442,9 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
       if(!participantExists){
         const trainee=await addDoc(collection(db,"Trainees"),{nameandsurname:participant.name,Email:null,Documents:[]})
         await updateDoc(doc(db,"Trainees",trainee.id),{uid:trainee.id})
+        setTrainees(prev => [...prev, {nameandsurname:participant.name,Email:null,Documents:[],uid:trainee.id,id:trainee.id}]);
+
+        
       }
     } else {
       console.log('Maximum participants limit reached (4 participants).');
@@ -1459,7 +1462,25 @@ export const Item = ({ item,i, setI, trainers, trainees,saveEvent,toggleForm,set
     return trainees.filter(trainee => !traineeIdsToRemove.includes(trainee.nameandsurname));
   }, [trainees, participants]);
   const [selectedCoaches, setSelectedCoaches] = useState(item.trainers);
+  const [prices, setPrices] = useState([]);
 
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const pricesSnapshot = await getDoc(doc(db,"/Club/GeneralInformation"))
+
+
+        if (pricesSnapshot.exists) {
+          const pricesData = pricesSnapshot.data().prices;
+          setPrices(pricesData.map((price)=>({id:price.id,value:parseInt(price.value,10)})));
+        }
+      } catch (error) {
+        console.error('Error fetching prices:', error);
+      }
+    };
+
+    fetchPrices();
+  }, []); // Run this effect only once on component mount
 // Function to handle coach selection
 const handleCoachSelection = (e) => {
   const selectedCoachName = e.target.value;
@@ -1785,21 +1806,28 @@ const timeIntervals = [
                     </div>
 
                     {classDetails.classTime.map((cls, index) => (
-                      <div key={index} className="flex flex-col">
-                        <strong className="text-gray-600 font-semibold">
-                          {index + 1} time a week Price(Monthly)
-                        </strong>
-                        <input
-                          className="rounded-lg "
-                          type="text"
-                          name="classTime"
-                          value={cls.price}
-                          onChange={(e) =>
-                            handlePriceChange(e.target.value, "price", index)
-                          }
-                        />
-                      </div>
-                    ))}
+       <div key={index} className="flex flex-col">
+          <strong className="text-gray-600 font-semibold">
+            Attending {index + 1} times a week Price (Monthly)
+          </strong>
+          <select
+            className="rounded-lg"
+            name="classTime"
+            value={parseInt(cls.price,10)}
+            onChange={e =>
+              handlePriceChange(e.target.value, "price", index)
+            }
+            required
+          >
+            <option value="">Select Price</option>
+            {prices.map(price => (
+              <option key={price.id} value={price.value}>
+                {price.value}
+              </option>
+            ))}
+          </select>
+        </div>
+      ))}
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold  ml-4 mb-2">
@@ -2157,7 +2185,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
     // Filter trainers array to remove trainers with relevant coach names
     return trainers.filter((trainer) => !relevantCoachNames.has(trainer.nameandsurname));
   };
-
+  const {setTrainees}=useAuth()
   const filteredTrainers=filterTrainers(fiteredEvents)
   const [selectedDateTime, setSelectedDateTime] = useState([new Date()]);
   const [selectedDurations, setSelectedDurations] = useState([60]);
@@ -2424,6 +2452,25 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
   };
   const [participants, setParticipants] = useState(classDetails.participants?classDetails.participants:[]);
   const [newParticipant,setParticipant]=useState({name:'',payment:''})
+  const [prices, setPrices] = useState([]);
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const pricesSnapshot = await getDoc(doc(db,"/Club/GeneralInformation"))
+
+
+        if (pricesSnapshot.exists) {
+          const pricesData = pricesSnapshot.data().prices;
+          setPrices(pricesData.map((price)=>({id:price.id,value:parseInt(price.value,10)})));
+        }
+      } catch (error) {
+        console.error('Error fetching prices:', error);
+      }
+    };
+
+    fetchPrices();
+  }, []); // Run this effect only once on component mount
 
   const addParticipant = async(participant) => {
     // Check if participant exists in trainees array
@@ -2431,6 +2478,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
 
     if (participants.length < 4) {
       setParticipants(prev => [...prev, participant]);
+   
       setParticipant({ name: '', payment: '' });
       setClassDetails(prevReservation => ({
         ...prevReservation,
@@ -2440,6 +2488,7 @@ export const NewItem = ({ trainers, trainees, setI, i,toggleForm,classDetails, s
       if(!participantExists){
         const trainee=await addDoc(collection(db,"Trainees"),{nameandsurname:participant.name,Email:null,Documents:[]})
         await updateDoc(doc(db,"Trainees",trainee.id),{uid:trainee.id})
+        setTrainees(prev => [...prev, {nameandsurname:participant.name,Email:null,Documents:[],uid:trainee.id,id:trainee.id}]);
       }
     } else {
       console.log('Maximum participants limit reached (4 participants).');
@@ -2640,7 +2689,7 @@ const timeIntervals = [
                       className="rounded-lg"
                       type="text"
                       name="Features"
-                      required
+                      defaultValue={" "}
                       onChange={(e) =>
                         setClassDetails({
                           ...classDetails,
@@ -2692,23 +2741,29 @@ const timeIntervals = [
                       />
                     </label>
                   </div> */}
-                  {classDetails.classTime.map((cls, index) => (
-                    <div key={index}>
-                      <strong className="text-gray-600 font-semibold">
-                        attending {index + 1} times a week Price (Monthly)
-                      </strong>
-                      <input
-                        className="rounded-lg"
-                        type="text"
-                        name="classTime"
-                        value={cls.price}
-                        onChange={(e) =>
-                          handlePriceChange(e.target.value, "price", index)
-                        }
-                        required
-                      />
-                    </div>
-                  ))}
+        {classDetails.classTime.map((cls, index) => (
+        <div key={index}>
+          <strong className="text-gray-600 font-semibold">
+            Attending {index + 1} times a week Price (Monthly)
+          </strong>
+          <select
+            className="rounded-lg"
+            name="classTime"
+            value={cls.price}
+            onChange={e =>
+              handlePriceChange(e.target.value, "price", index)
+            }
+            required
+          >
+            <option value="">Select Price</option>
+            {prices.map(price => (
+              <option key={price.id} value={price.value}>
+                {price.value}
+              </option>
+            ))}
+          </select>
+        </div>
+      ))}
                 </div>
               </div>
               <h3 className="text-lg font-semibold  ml-4 mb-2">Description</h3>
@@ -2721,7 +2776,7 @@ const timeIntervals = [
                   type="text"
                   name="description"
                   multiple
-                  required
+                  defaultValue={""}
                   onChange={handleInputChange} // Convert string back to array on change
                 />
               </div>
@@ -2851,7 +2906,8 @@ const timeIntervals = [
                       name="minmumNumber"
                       onChange={handleInputChange}
                       min={1}
-                      required
+                      defaultValue={1}
+        
                     />
                   </div>
                   <div>
@@ -2865,7 +2921,7 @@ const timeIntervals = [
                       name="maximumNumber"
                       onChange={handleInputChange}
                       min={classDetails.minmumNumber}
-                      required
+                      defaultValue={" "}
                     />
                   </div>
 
@@ -2876,7 +2932,7 @@ const timeIntervals = [
                     <br />
                     <select
                       className="rounded-lg"
-                      required
+                    
                       onChange={(e) =>
                         setClassDetails({
                           ...classDetails,
@@ -2899,7 +2955,7 @@ const timeIntervals = [
                       type="text"
                       name="age"
                       onChange={handleInputChange}
-                      required
+                 defaultValue={" "}
                     />
                   </div>
                 </div>

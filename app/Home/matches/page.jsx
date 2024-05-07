@@ -555,6 +555,8 @@ const addParticipant = async(participant) => {
     if(!participantExists){
       const trainee=await addDoc(collection(db,"Trainees"),{nameandsurname:participant.name,Email:null,Documents:[]})
       await updateDoc(doc(db,"Trainees",trainee.id),{uid:trainee.id})
+      data.setTrainees(prev => [...prev, {nameandsurname:participant.name,Email:null,Documents:[],uid:trainee.id,id:trainee.id}]);
+
     }
   } else {
     console.log('Maximum participants limit reached (4 participants).');

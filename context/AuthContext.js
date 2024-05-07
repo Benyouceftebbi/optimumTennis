@@ -175,7 +175,7 @@ useEffect(() => {
   fetchData();
 }, []);
   return (
-    <AppContext.Provider value={{ exampleState, setExampleState,classes,setClasses,tournaments,setTournaments,courts,setCourts,discounts,setDiscounts,memberships,setMemberships,trainers,trainees}}>
+    <AppContext.Provider value={{ exampleState, setExampleState,classes,setClasses,tournaments,setTournaments,courts,setCourts,discounts,setDiscounts,memberships,setMemberships,trainers,trainees,setTrainees}}>
       {children}
     </AppContext.Provider>
   );

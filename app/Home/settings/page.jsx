@@ -529,7 +529,7 @@ onChange={handleInputChange}
       )
     }
 const Settings=()=>{
-    const [clubInformation,setClubInformation]=useState({courts:[],schedule:{},amenities:{}})
+    const [clubInformation,setClubInformation]=useState({courts:[],schedule:{},amenities:{},prices:[]})
     const [clubInformationOriginal,setClubInformationOriginal]=useState({courts:[],schedule:{},amenities:{}})
     const {classes,tournaments,courts,discounts,memberships,setDiscounts,setMemberships } = useAuth();
 
@@ -648,7 +648,23 @@ getClubInfo()
 
       const [showModal,setShowModal]=useState(false)
       const [showModalDiscount,setShowModalDiscount]=useState(false)
-
+      const handleAddPrice = () => {
+        const newPrice = { id: clubInformation.prices.length + 1, value: 0 };
+        setClubInformation(prevClubInfo => ({
+          ...prevClubInfo,
+          prices: [...prevClubInfo.prices, newPrice]
+        }));
+      };
+    
+      const handleChange = (id, value) => {
+        const updatedPrices = clubInformation.prices.map(price =>
+          price.id === id ? { ...price, value } : price
+        );
+        setClubInformation(prevClubInfo => ({
+          ...prevClubInfo,
+          prices: updatedPrices
+        }));
+      };
 return(
     <>
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet" />
@@ -775,6 +791,26 @@ onClick={handleAddCourt}
       </div>
   </div>
   </div>
+  <hr class="mt-4 mb-8" />
+  <div>
+
+  <label htmlFor="classPrice">Class Price:</label>
+
+  
+      {clubInformation.prices.slice(1).map(price => (
+        <div key={price.id}>
+          <label htmlFor={`classPrice${price.id}`}>Price:</label>
+          <input
+            type="number"
+            id={`classPrice${price.id}`}
+            value={price.value}
+            onChange={e => handleChange(price.id, e.target.value)}
+            className="border rounded-lg border-black-500 bg-white p-2 items-center justify-center align-center flex-col"
+          />
+        </div>
+      ))}
+          <button onClick={handleAddPrice} className="flex h-12 w-16 cursor-pointer items-center justify-center rounded-md bg-sky-200 font-bold text-blue-900 hover:bg-blue-300 text-center">Add Price</button>
+    </div>
   <hr class="mt-4 mb-8" />
   <p class="py-2 text-xl font-semibold">Opening hours</p>
   <p class="py-2 text-xl font-semibold">weekdays</p>
